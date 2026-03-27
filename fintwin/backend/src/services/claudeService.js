@@ -1,20 +1,112 @@
-export async function callClaude(systemPrompt, userMessage) {
-  console.log("⚠️ AI DISABLED — USING MOCK DATA");
+import axios from 'axios';
 
-  return {
-    archetype: "Disciplined Builder",
-    riskScore: 72,
-    radarScores: {
-      riskTolerance: 68,
-      discipline: 85,
-      patience: 80,
-      optimism: 70,
-      liquidity: 60
-    },
-    summary: "You are consistent, disciplined, and focused on long-term wealth building.",
-    traits: ["Disciplined", "Patient", "Strategic"],
-    savingsRate: 30,
-    monthlyNetWorth: 50000,
-    estimatedNetWorth: 1500000
-  };
+/**
+ * callClaude - unified Groq API caller
+ * @param {string} systemPrompt  - system-level instruction (used as context)
+ * @param {any}    userMessage   - user data (object for profile, string for insight)
+ * @param {boolean} stream       - if true, returns a streaming axios response
+ */
+export async function callClaude(systemPrompt, userMessage, stream = false) {
+  const apiKey = process.env.GROQ_API_KEY;
+
+  if (!apiKey) {
+    throw new Error('GROQ_API_KEY is missing from environment variables.');
+  }
+
+  // ── Build messages ─────────────────────────────────────────────────────────
+  let messages;
+
+  if (stream) {
+    // Insight mode: systemPrompt is an instruction, userMessage is a JSON string
+    messages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: typeof userMessage === 'string' ? userMessage : JSON.stringify(userMessage) },
+    ];
+  } else {
+    // Profile mode: build a rich structured prompt from userData object
+    const userData = userMessage;
+    const savings = userData.income - userData.expenses - userData.variableSpend - userData.emi;
+    const savingsRate = userData.income > 0 ? ((savings / userData.income) * 100).toFixed(1) : 0;
+
+    const profilePrompt = `You are a financial personality analyzer for an Indian fintech app called FinTwin.
+
+Given the user's financial data below, generate a detailed financial twin personality profile.
+
+USER FINANCIAL DATA:
+- Monthly Income: ₹${userData.income}
+- Fixed Expenses: ₹${userData.expenses}
+- Variable Spend: ₹${userData.variableSpend}
+- Monthly EMI: ₹${userData.emi}
+- Current Portfolio Value: ₹${userData.portfolioValue}
+- Primary Financial Drive: ${userData.emotionalChoice}
+- Calculated Monthly Savings: ₹${savings} (${savingsRate}% savings rate)
+
+Respond ONLY with a valid JSON object. No markdown, no code fences, no explanation. Just raw JSON:
+
+{
+  "archetype": "one of: Disciplined Builder | Aggressive Grower | Conservative Saver | Balanced Achiever | Debt Warrior | Impulsive Spender",
+  "riskScore": <number 0-100>,
+  "radarScores": {
+    "riskTolerance": <number 0-100>,
+    "discipline": <number 0-100>,
+    "patience": <number 0-100>,
+    "optimism": <number 0-100>,
+    "liquidity": <number 0-100>
+  },
+  "summary": "<2-3 sentence personality summary based on spending behavior and goals>",
+  "traits": ["<trait1>", "<trait2>", "<trait3>"],
+  "savingsRate": <number percentage>,
+  "monthlyNetWorth": <monthly net savings as number in rupees>,
+  "estimatedNetWorth": <estimated total net worth as number in rupees>
+}`;
+
+    messages = [{ role: 'user', content: profilePrompt }];
+  }
+
+  // ── Make Groq API request ──────────────────────────────────────────────────
+  try {
+    const response = await axios.post(
+      'https://api.groq.com/openai/v1/chat/completions',
+      {
+        model: 'llama-3.3-70b-versatile',
+        messages,
+        temperature: 0.5,
+        max_tokens: 1024,
+        stream,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 30000,
+        responseType: stream ? 'stream' : 'json',
+      }
+    );
+
+    if (stream) {
+      // Return raw axios response so insight.js can pipe the stream
+      return response;
+    }
+
+    // Non-stream: parse JSON from text response
+    const content = response.data.choices[0].message.content.trim();
+    console.log('✅ Groq raw response:', content);
+
+    // Extract JSON even if the model wraps it in markdown fences
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('Groq response did not contain valid JSON.');
+    }
+
+    return JSON.parse(jsonMatch[0]);
+  } catch (error) {
+    if (error.response) {
+      console.error('❌ Groq API error status:', error.response.status);
+      console.error('❌ Groq API error body:', JSON.stringify(error.response.data, null, 2));
+    } else {
+      console.error('❌ Groq call failed:', error.message);
+    }
+    throw error;
+  }
 }
