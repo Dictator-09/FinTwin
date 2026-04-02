@@ -11,8 +11,25 @@ import insightRouter from './routes/insight.js';
 
 const app = express();
 
+const configuredOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin(origin, callback) {
+    // Allow non-browser calls (no Origin header) and configured frontends.
+    if (!origin) return callback(null, true);
+
+    const isConfigured = configuredOrigins.includes(origin);
+    const isVercelPreview = origin.endsWith('.vercel.app');
+
+    if (isConfigured || isVercelPreview) {
+      return callback(null, true);
+    }
+
+    return callback(new Error('Not allowed by CORS'));
+  },
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type']
 }));
