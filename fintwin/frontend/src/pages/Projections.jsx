@@ -84,73 +84,72 @@ export default function Projections() {
           </div>
         </div>
 
-        <div className="bg-[#0F1520] border border-white/5 rounded-2xl p-8 shadow-xl flex flex-col gap-6">
-          {/* TOP */}
-          <div className="w-full relative">
-            <div className="flex justify-between items-end mb-4">
-              <h2 className="text-[#EEF2FF] font-semibold">Current Portfolio Projection</h2>
-              <div className="flex gap-4">
-                <div className="flex flex-col items-end">
-                  <span className="text-[10px] text-[#566580] font-bold uppercase tracking-wider">Median Year {selectedYear}</span>
-                  <span className="text-[16px] text-[#00E5B8] font-bold">{formatINR(currentP50)}</span>
-                </div>
-                <div className="flex flex-col items-end">
-                  <span className="text-[10px] text-[#566580] font-bold uppercase tracking-wider">Worst Case</span>
-                  <span className="text-[16px] text-[#FF4D4D] font-bold">{formatINR(currentP10)}</span>
-                </div>
-                <div className="flex flex-col items-end">
-                  <span className="text-[10px] text-[#566580] font-bold uppercase tracking-wider">Best Case</span>
-                  <span className="text-[16px] text-[#22D3A5] font-bold">{formatINR(currentP90)}</span>
-                </div>
+        {/* Current Portfolio Chart Card */}
+        <div className="bg-[#0F1520] border border-white/5 rounded-2xl p-8 shadow-xl">
+          <div className="flex justify-between items-end mb-6">
+            <h2 className="text-[#EEF2FF] font-semibold">Current Portfolio Projection</h2>
+            <div className="flex gap-6">
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] text-[#566580] font-bold uppercase tracking-wider">Median Year {selectedYear}</span>
+                <span className="text-[16px] text-[#00E5B8] font-bold">{formatINR(currentP50)}</span>
+              </div>
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] text-[#566580] font-bold uppercase tracking-wider">Worst Case</span>
+                <span className="text-[16px] text-[#FF4D4D] font-bold">{formatINR(currentP10)}</span>
+              </div>
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] text-[#566580] font-bold uppercase tracking-wider">Best Case</span>
+                <span className="text-[16px] text-[#22D3A5] font-bold">{formatINR(currentP90)}</span>
               </div>
             </div>
-            <div className="h-[260px] w-full">
-              <PercentileBandsChart data={current} dangerZoneThreshold={5000000} />
-            </div>
           </div>
-
-          <div className="flex items-center gap-4 my-2">
-            <div className="h-[1px] bg-white/5 flex-1"></div>
-            <div className="text-[12px] text-[#00E5B8] bg-[#00E5B8]/10 px-4 py-1 rounded-full border border-[#00E5B8]/20 font-bold tracking-wider">
-              +{formatINR(rebP50 - currentP50)} ALPHA DELTA DETECTED BY YEAR {selectedYear}
-            </div>
-            <div className="h-[1px] bg-white/5 flex-1"></div>
+          <div className="h-[350px] w-full">
+            <PercentileBandsChart data={current} dangerZoneThreshold={5000000} />
           </div>
+        </div>
 
-          {/* BOTTOM */}
-          <div className="w-full relative">
-            <div className="flex justify-between items-end mb-4">
-              <h2 className="text-[#EEF2FF] font-semibold">After Rebalancing</h2>
-              <div className="flex gap-4">
-                <div className="flex flex-col items-end">
-                  <span className="text-[10px] text-[#566580] font-bold uppercase tracking-wider">Median Year {selectedYear}</span>
-                  <span className="text-[16px] text-[#00E5B8] font-bold">{formatINR(rebP50)}</span>
-                </div>
-                <div className="flex flex-col items-end">
-                  <span className="text-[10px] text-[#566580] font-bold uppercase tracking-wider">Worst Case</span>
-                  <span className="text-[16px] text-[#FF4D4D] font-bold">{formatINR(rebP10)}</span>
-                </div>
-                <div className="flex flex-col items-end">
-                  <span className="text-[10px] text-[#566580] font-bold uppercase tracking-wider">Best Case</span>
-                  <span className="text-[16px] text-[#22D3A5] font-bold">{formatINR(rebP90)}</span>
-                </div>
+        {/* Alpha Delta Divider */}
+        <div className="flex items-center gap-4 my-2">
+          <div className="h-[1px] bg-white/5 flex-1"></div>
+          <div className="text-[12px] text-[#00E5B8] bg-[#00E5B8]/10 px-4 py-1.5 rounded-full border border-[#00E5B8]/20 font-bold tracking-wider whitespace-nowrap">
+            {rebP50 - currentP50 >= 0 ? '+' : ''}{formatINR(rebP50 - currentP50)} ALPHA DELTA BY YEAR {selectedYear}
+          </div>
+          <div className="h-[1px] bg-white/5 flex-1"></div>
+        </div>
+
+        {/* After Rebalancing Chart Card */}
+        <div className="bg-[#0F1520] border border-white/5 rounded-2xl p-8 shadow-xl">
+          <div className="flex justify-between items-end mb-6">
+            <h2 className="text-[#EEF2FF] font-semibold">After Rebalancing</h2>
+            <div className="flex gap-6">
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] text-[#566580] font-bold uppercase tracking-wider">Median Year {selectedYear}</span>
+                <span className="text-[16px] text-[#00E5B8] font-bold">{formatINR(rebP50)}</span>
+              </div>
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] text-[#566580] font-bold uppercase tracking-wider">Worst Case</span>
+                <span className="text-[16px] text-[#FF4D4D] font-bold">{formatINR(rebP10)}</span>
+              </div>
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] text-[#566580] font-bold uppercase tracking-wider">Best Case</span>
+                <span className="text-[16px] text-[#22D3A5] font-bold">{formatINR(rebP90)}</span>
               </div>
             </div>
-            <div className="h-[260px] w-full">
-              <PercentileBandsChart data={rebalanced} dangerZoneThreshold={5000000} />
-            </div>
           </div>
-          
-          {/* SLIDER */}
-          <div className="mt-4 pt-6 border-t border-white/5 px-4">
-            <input 
-              type="range" min="1" max="20" step="1" 
-              value={selectedYear} onChange={e => setSelectedYear(parseInt(e.target.value))}
-              className="w-full accent-[#00E5B8] h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer"
-            />
-            <div className="flex justify-between text-[11px] text-[#566580] mt-2 font-bold px-1">
-              <span>Y1</span><span>Y5</span><span>Y10</span><span>Y15</span><span>Y20</span>
-            </div>
+          <div className="h-[350px] w-full">
+            <PercentileBandsChart data={rebalanced} dangerZoneThreshold={5000000} />
+          </div>
+        </div>
+
+        {/* Year Slider */}
+        <div className="bg-[#0F1520] border border-white/5 rounded-2xl p-6 shadow-xl">
+          <input 
+            type="range" min="1" max="20" step="1" 
+            value={selectedYear} onChange={e => setSelectedYear(parseInt(e.target.value))}
+            className="w-full accent-[#00E5B8] h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer"
+          />
+          <div className="flex justify-between text-[11px] text-[#566580] mt-2 font-bold px-1">
+            <span>Y1</span><span>Y5</span><span>Y10</span><span>Y15</span><span>Y20</span>
           </div>
         </div>
 

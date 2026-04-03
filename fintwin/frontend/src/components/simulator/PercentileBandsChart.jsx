@@ -40,7 +40,7 @@ const PercentileBandsChart = ({ data, dangerZoneThreshold = 500000 }) => {
   }));
 
   return (
-    <div style={{ width: '100%', height: '400px' }}>
+    <div style={{ width: '100%', height: '100%' }}>
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={chartData} margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
           <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
