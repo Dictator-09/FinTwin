@@ -58,6 +58,35 @@ export default function Onboarding() {
     }));
   };
 
+  const loadPreset = (type) => {
+    if (type === 'excellent') {
+      setFormData({
+        age: 28, retirementAge: 50, income: 250000, expenses: 60000, variableSpend: 20000, emi: 0, portfolioValue: 4500000,
+        emotionalChoice: 'Independence', monthlyIncome: 250000, monthlyExpenses: 60000, monthlyEMI: 0,
+        currentSavings: 800000, monthlyInvestment: 125000, employmentType: 'salaried', taxBracket: 30, dependents: 0,
+        hasHealthInsurance: true, hasTermInsurance: true,
+        holdings: [
+          { name: 'RELIANCE', type: 'Equity', units: 400, costBasis: 2800 },
+          { name: 'NIFTYBEES', type: 'Equity', units: 5000, costBasis: 250 },
+          { name: 'LIQUIDCASE', type: 'Debt', units: 1000, costBasis: 1000 }
+        ]
+      });
+      setCurrentStep(0);
+    } else {
+      setFormData({
+        age: 42, retirementAge: 60, income: 90000, expenses: 50000, variableSpend: 15000, emi: 25000, portfolioValue: 150000,
+        emotionalChoice: 'Security', monthlyIncome: 90000, monthlyExpenses: 50000, monthlyEMI: 25000,
+        currentSavings: 20000, monthlyInvestment: 0, employmentType: 'salaried', taxBracket: 20, dependents: 3,
+        hasHealthInsurance: false, hasTermInsurance: false,
+        holdings: [
+          { name: 'YESBANK', type: 'Equity', units: 1000, costBasis: 24.5 },
+          { name: 'IDEA', type: 'Equity', units: 500, costBasis: 12.0 }
+        ]
+      });
+      setCurrentStep(0);
+    }
+  };
+
   const surplus = useMemo(() => {
     const inc = Number(formData.monthlyIncome) || Number(formData.income) || 0;
     const exp = Number(formData.monthlyExpenses) || Number(formData.expenses) || 0;
@@ -162,6 +191,16 @@ export default function Onboarding() {
         <h2 className="text-[14px] font-semibold mb-4 text-center text-[#566580] uppercase tracking-widest">
           {currentStep === 0 ? 'Build Your Financial Twin' : currentStep === 1 ? 'Your Monthly Cash Flow' : 'Actual Portfolio Entry'}
         </h2>
+
+        {/* Preset Quick Loader */}
+        <div className="flex gap-4 justify-center mb-6">
+          <button type="button" onClick={() => loadPreset('excellent')} className="text-[11px] bg-[#00E5B8]/10 border border-[#00E5B8]/30 text-[#00E5B8] px-3 py-1.5 rounded-lg font-bold hover:bg-[#00E5B8]/20 transition-colors uppercase tracking-wider">
+            ★ Load "Excellent"
+          </button>
+          <button type="button" onClick={() => loadPreset('danger')} className="text-[11px] bg-[#FF4D4D]/10 border border-[#FF4D4D]/30 text-[#FF4D4D] px-3 py-1.5 rounded-lg font-bold hover:bg-[#FF4D4D]/20 transition-colors uppercase tracking-wider">
+            ⚠ Load "Danger"
+          </button>
+        </div>
         
         {error && (
           <div className="bg-[#FF4D4D]/10 border border-[#FF4D4D]/20 text-[#FF4D4D] text-sm p-4 rounded-lg mb-6">
