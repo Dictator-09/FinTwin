@@ -21,21 +21,55 @@ const MOCK_PROFILE = {
 
 const MOCK_INSIGHT = "Based on your current trajectory, your financial twin is showing strong resilience. Your monthly surplus of ₹45,000 is being utilized efficiently. To reach your 10-year goal faster, consider increasing your equity allocation by 5-10% to capture higher market risk premiums, given your 'Balanced Achiever' archetype.";
 
-const MOCK_SCENARIO = {
-  "scenarioName": "Retirement at 45",
-  "annualReturnRate": 0.12,
-  "inflationRate": 0.06,
-  "volatility": 0.15,
-  "additionalMonthlyInvestment": 25000,
-  "withdrawalStartYear": 17,
-  "withdrawalAmount": 200000,
-  "years": 20,
-  "majorExpenses": [
-    { "year": 3, "amount": 8000000, "label": "House Purchase" },
-    { "year": 5, "amount": 2000000, "label": "Business Seed" }
-  ],
-  "salaryGrowthRate": 0.08,
-  "scenarioSummary": "A transition to early retirement with significant mid-term capital outlays for housing and entrepreneurship."
+const getMockScenario = (userInput = "") => {
+  const inputLower = userInput.toLowerCase();
+  
+  if (inputLower.includes('job') || inputLower.includes('fired') || inputLower.includes('medical') || inputLower.includes('lose')) {
+    return {
+      "scenarioName": "Major Setup Back (Loss of Income)",
+      "annualReturnRate": 0.08,
+      "inflationRate": 0.08,
+      "volatility": 0.25,
+      "additionalMonthlyInvestment": -50000,
+      "withdrawalStartYear": 1,
+      "withdrawalAmount": 300000,
+      "years": 20,
+      "majorExpenses": [{ "year": 1, "amount": 1000000, "label": "Emergency Outlay" }],
+      "salaryGrowthRate": 0.0,
+      "scenarioSummary": "Severe income loss with high emergency withdrawals during early years."
+    };
+  } else if (inputLower.includes('promotion') || inputLower.includes('business') || inputLower.includes('lottery') || inputLower.includes('bull')) {
+    return {
+      "scenarioName": "Aggressive Wealth Accumulation",
+      "annualReturnRate": 0.16,
+      "inflationRate": 0.06,
+      "volatility": 0.12,
+      "additionalMonthlyInvestment": 100000,
+      "withdrawalStartYear": null,
+      "withdrawalAmount": 0,
+      "years": 20,
+      "majorExpenses": [],
+      "salaryGrowthRate": 0.15,
+      "scenarioSummary": "A powerful compounding curve driven by high income generation and strong market performance."
+    };
+  }
+  
+  // Default Average
+  return {
+    "scenarioName": "Standard Re-allocation",
+    "annualReturnRate": 0.11,
+    "inflationRate": 0.06,
+    "volatility": 0.15,
+    "additionalMonthlyInvestment": 10000,
+    "withdrawalStartYear": 18,
+    "withdrawalAmount": 100000,
+    "years": 20,
+    "majorExpenses": [
+      { "year": 5, "amount": 1500000, "label": "Vehicle/Event Purchase" }
+    ],
+    "salaryGrowthRate": 0.08,
+    "scenarioSummary": "A standard life trajectory with typical mid-term expenses and average market returns."
+  };
 };
 
 /**
@@ -66,7 +100,7 @@ export async function callClaude(systemPrompt, userMessage, stream = false) {
     const userMessageLower = (typeof userMessage === 'string' ? userMessage : '').toLowerCase();
     
     if (promptLower.includes('scenario parser')) {
-      return MOCK_SCENARIO;
+      return getMockScenario(userMessageLower);
     }
     
     if (typeof userMessage !== 'string' || promptLower.includes('personality analyzer')) {

@@ -104,9 +104,12 @@ router.post('/', async (req, res, next) => {
         (portfolio?.assets ? Object.values(portfolio.assets).reduce((s, a) => s + (a.value || 0), 0) : null) ??
         Number(userProfile?.portfolioValue) ?? 100000;
 
+      const baseSIP = profile?.monthlyInvestment ?? userProfile?.monthlyInvestment ?? (Number(userProfile?.monthlyIncome) * 0.2);
+      const sipAsNumber = (typeof baseSIP === 'number' && !isNaN(baseSIP)) ? baseSIP : 0;
+      
       const params = {
         initialPortfolio,
-        monthlyContribution: profile?.monthlyInvestment ?? resolvedScenario.additionalMonthlyInvestment ?? 10000,
+        monthlyContribution: sipAsNumber + (resolvedScenario.additionalMonthlyInvestment ?? 0),
         annualReturnRate: resolvedScenario.annualReturnRate ?? 0.10,
         inflationRate: resolvedScenario.inflationRate ?? 0.06,
         volatility: resolvedScenario.volatility ?? 0.15,

@@ -12,19 +12,26 @@ router.post('/', async (req, res) => {
 
   const systemPrompt = `You are a financial scenario parser for Indian users.
 Given a user's free-form description of their financial future, extract structured scenario parameters.
+
+CRITICAL INSTRUCTIONS:
+- Be AGGRESSIVE and DRAMATIC with your parameters based on the prompt. Do not be conservative.
+- If the prompt is negative (e.g., "lost my job", "medical emergency"), set 'additionalMonthlyInvestment' to a large negative number (to negate their current SIPs) and add massive 'majorExpenses'. Increase 'volatility'.
+- If the prompt is positive (e.g., "got a promotion", "startup exit", "bull market"), set 'additionalMonthlyInvestment' to a huge positive number, increase 'annualReturnRate' significantly (e.g. 0.15 or 0.18), and lower 'volatility'.
+- 'additionalMonthlyInvestment' is an absolute INR amount added to or subtracted from their baseline SIP. It CAN be negative!
+
 Return ONLY valid JSON with this shape:
 {
-  "scenarioName": "string",
-  "annualReturnRate": number (decimal, e.g. 0.12),
+  "scenarioName": "string (Creative, short title)",
+  "annualReturnRate": number (decimal, baseline is 0.10. Shift to 0.05 for bear markets, 0.18 for bull markets),
   "inflationRate": number (e.g. 0.06),
-  "volatility": number (e.g. 0.15),
-  "additionalMonthlyInvestment": number (INR),
+  "volatility": number (baseline 0.15. Shift to 0.25 for risky scenarios),
+  "additionalMonthlyInvestment": number (INR, CAN BE NEGATIVE if they lose income),
   "withdrawalStartYear": number or null,
   "withdrawalAmount": number or null,
   "years": number (simulation horizon, default 20),
   "majorExpenses": [{ "year": number, "amount": number, "label": "string" }],
   "salaryGrowthRate": number,
-  "scenarioSummary": "One sentence plain English summary"
+  "scenarioSummary": "One sentence plain English summary of what you changed"
 }
 No explanation. Only JSON.`;
 
