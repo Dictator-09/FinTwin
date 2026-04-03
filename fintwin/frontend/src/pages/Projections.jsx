@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTwinStore } from '../store';
 import { postProject } from '../utils/api';
-import Navbar from '../components/layout/Navbar';
+
 import PercentileBandsChart from '../components/simulator/PercentileBandsChart';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import { formatINR } from '../utils/formatCurrency';
@@ -32,7 +32,7 @@ export default function Projections() {
   if (!projectionResult) {
     return (
       <div className="min-h-screen bg-[#080C14] text-[#EEF2FF] font-sans pb-16">
-        <Navbar />
+
         <div className="max-w-[1400px] mx-auto p-[32px]">
           <LoadingSkeleton rows={8} height={50} />
         </div>
@@ -55,7 +55,7 @@ export default function Projections() {
 
   return (
     <div className="min-h-screen bg-[#080C14] text-[#EEF2FF] font-sans pb-16">
-      <Navbar />
+
       <div className="max-w-[1400px] mx-auto p-[32px]">
         <div className="flex justify-between items-center mb-8">
           <div>

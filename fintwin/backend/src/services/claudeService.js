@@ -25,10 +25,18 @@ export async function callClaude(systemPrompt, userMessage, stream = false) {
   } else {
     // Profile mode: build a rich structured prompt from userData object
     const userData = userMessage;
-    const savings = userData.income - userData.expenses - userData.variableSpend - userData.emi;
-    const savingsRate = userData.income > 0 ? ((savings / userData.income) * 100).toFixed(1) : 0;
 
-    const profilePrompt = `You are a financial personality analyzer for an Indian fintech app called FinTwin.
+    // If userMessage is a string (e.g. rebalance tip prompt), use it directly
+    if (typeof userData === 'string') {
+      messages = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userData }
+      ];
+    } else {
+      const savings = userData.income - userData.expenses - userData.variableSpend - userData.emi;
+      const savingsRate = userData.income > 0 ? ((savings / userData.income) * 100).toFixed(1) : 0;
+
+      const profilePrompt = `You are a financial personality analyzer for an Indian fintech app called FinTwin.
 
 Given the user's financial data below, generate a detailed financial twin personality profile.
 
@@ -60,7 +68,8 @@ Respond ONLY with a valid JSON object. No markdown, no code fences, no explanati
   "estimatedNetWorth": <estimated total net worth as number in rupees>
 }`;
 
-    messages = [{ role: 'user', content: profilePrompt }];
+      messages = [{ role: 'user', content: profilePrompt }];
+    }
   }
 
   // ── Make Groq API request ──────────────────────────────────────────────────
@@ -96,10 +105,16 @@ Respond ONLY with a valid JSON object. No markdown, no code fences, no explanati
     // Extract JSON even if the model wraps it in markdown fences
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error('Groq response did not contain valid JSON.');
+      // If no JSON found, return the raw string (for rebalance tips etc.)
+      return content;
     }
 
-    return JSON.parse(jsonMatch[0]);
+    try {
+      return JSON.parse(jsonMatch[0]);
+    } catch (parseErr) {
+      // If JSON parse fails, return raw string
+      return content;
+    }
   } catch (error) {
     if (error.response) {
       console.error('❌ Groq API error status:', error.response.status);
@@ -109,4 +124,58 @@ Respond ONLY with a valid JSON object. No markdown, no code fences, no explanati
     }
     throw error;
   }
+}
+
+/**
+ * callGroqStream - streams Groq response, parses SSE, writes plain text to res
+ */
+export async function callGroqStream(systemPrompt, userMessage, res) {
+  const apiKey = process.env.GROQ_API_KEY;
+
+  if (!apiKey) {
+    throw new Error('GROQ_API_KEY is missing from environment variables.');
+  }
+
+  const response = await axios.post(
+    'https://api.groq.com/openai/v1/chat/completions',
+    {
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage }
+      ],
+      max_tokens: 512,
+      temperature: 0.7,
+      stream: true
+    },
+    {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      responseType: 'stream'
+    }
+  );
+
+  return new Promise((resolve, reject) => {
+    let buffer = '';
+    response.data.on('data', (chunk) => {
+      buffer += chunk.toString();
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed === 'data: [DONE]') continue;
+        if (trimmed.startsWith('data: ')) {
+          try {
+            const json = JSON.parse(trimmed.slice(6));
+            const content = json.choices?.[0]?.delta?.content;
+            if (content) res.write(content);
+          } catch (e) { /* skip malformed SSE lines */ }
+        }
+      }
+    });
+    response.data.on('end', resolve);
+    response.data.on('error', reject);
+  });
 }

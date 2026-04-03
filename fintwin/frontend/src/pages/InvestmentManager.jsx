@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { useTwinStore } from '../store';
 import { getPortfolio } from '../utils/api';
-import Navbar from '../components/layout/Navbar';
+
 import MetricCard from '../components/shared/MetricCard';
 import Badge from '../components/shared/Badge';
 import { formatINR } from '../utils/formatCurrency';
@@ -49,7 +49,7 @@ export default function InvestmentManager() {
 
   return (
     <div className="min-h-screen bg-[#080C14] text-[#EEF2FF] font-sans pb-16">
-      <Navbar />
+
       <div className="max-w-[1400px] mx-auto p-[32px]">
         <div className="flex justify-between items-center mb-8">
           <div>

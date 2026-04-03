@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTwinStore } from '../store';
-import Navbar from '../components/layout/Navbar';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import MetricCard from '../components/shared/MetricCard';
 import PersonalityCard from '../components/twin/PersonalityCard';
 import TwinTimeline from '../components/twin/TwinTimeline';
+import HealthScore from '../components/twin/HealthScore';
+import ReportModal from '../components/shared/ReportModal';
 import { formatINR } from '../utils/formatCurrency';
 import { formatPercent } from '../utils/formatPercent';
 
@@ -13,11 +14,13 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const twinState = useTwinStore((state) => state.twinState);
   const userProfile = useTwinStore((state) => state.userProfile) || {};
+  const portfolio = useTwinStore((state) => state.portfolio) || [];
+  const simulationResult = useTwinStore((state) => state.simulationResult);
+  const healthScore = useTwinStore((state) => state.healthScore);
 
   if (!twinState) {
     return (
       <div className="min-h-screen bg-[#080C14] text-[#EEF2FF]">
-        <Navbar />
         <div className="p-8 max-w-4xl mx-auto flex flex-col items-center justify-center mt-20">
           <div className="w-12 h-12 border-4 border-[#00E5B8] border-t-transparent rounded-full animate-spin mb-6"></div>
           <h2 className="text-xl font-semibold text-[#EEF2FF] mb-8">Your financial twin is being built...</h2>
@@ -29,22 +32,66 @@ export default function Dashboard() {
     );
   }
 
-  const income = userProfile.income || 150000;
-  const fixedExpenses = userProfile.expenses || 40000;
-  const variableSpend = userProfile.variableSpend || 30000;
-  const emis = userProfile.emi || 25000;
-  const netSurplus = twinState.monthlyNetWorth || (income - fixedExpenses - variableSpend - emis);
-  
-  const equityPortfolio = userProfile.portfolioValue ? userProfile.portfolioValue * 0.7 : 1230000;
-  const debtPortfolio = userProfile.portfolioValue ? userProfile.portfolioValue * 0.2 : 310000;
-  const goldPortfolio = userProfile.portfolioValue ? userProfile.portfolioValue * 0.05 : 180000;
-  const cryptoPortfolio = userProfile.portfolioValue ? userProfile.portfolioValue * 0.05 : 140000;
-  const currentTotal = userProfile.portfolioValue || 1860000;
-  const totalInvested = currentTotal * 0.76;
+  // Computed values from store (Upgrade 10 — replace hardcoded)
+  const metrics = useMemo(() => {
+    const income = Number(userProfile.monthlyIncome || userProfile.income || 0);
+    const fixedExpenses = Number(userProfile.monthlyExpenses || userProfile.expenses || 0);
+    const variableSpend = Number(userProfile.variableSpend || 0);
+    const emis = Number(userProfile.monthlyEMI || userProfile.emi || 0);
+    const totalExpenses = fixedExpenses + variableSpend + emis;
+    const netSurplus = income - totalExpenses;
+    const savingsRate = income > 0 ? ((netSurplus / income) * 100).toFixed(1) : '0.0';
+    const netWorth = Number(twinState.estimatedNetWorth || userProfile.portfolioValue || 0);
+    const portfolioValue = Number(userProfile.portfolioValue || 0);
+
+    // Compute from actual portfolio if loaded
+    const totalAssets = portfolio.length > 0
+      ? portfolio.reduce((s, a) => s + (a.currentValue || 0), 0)
+      : portfolioValue;
+
+    const totalInvested = portfolio.length > 0
+      ? portfolio.reduce((s, a) => s + (a.costBasis || 0), 0)
+      : portfolioValue * 0.76;
+
+    const totalGain = totalAssets - totalInvested;
+    const gainPct = totalInvested > 0 ? ((totalGain / totalInvested) * 100) : 0;
+
+    // Asset breakdown from actual portfolio
+    const assetBreakdown = { Equity: 0, Debt: 0, Gold: 0, Crypto: 0 };
+    if (portfolio.length > 0) {
+      portfolio.forEach(item => {
+        if (assetBreakdown.hasOwnProperty(item.type)) {
+          assetBreakdown[item.type] += item.currentValue || 0;
+        }
+      });
+    } else {
+      assetBreakdown.Equity = portfolioValue * 0.7;
+      assetBreakdown.Debt = portfolioValue * 0.2;
+      assetBreakdown.Gold = portfolioValue * 0.05;
+      assetBreakdown.Crypto = portfolioValue * 0.05;
+    }
+
+    const monthlyInvestment = Number(userProfile.monthlyInvestment || 0);
+
+    // Projected corpus at 60
+    const age = Number(userProfile.age) || 30;
+    const yearsToRetirement = Math.max(0, 60 - age);
+    const months = yearsToRetirement * 12;
+    const r = 0.01; // 12% annual = 1% monthly
+    const futureCorpus = totalAssets * Math.pow(1.01, months) +
+      monthlyInvestment * ((Math.pow(1.01, months) - 1) / 0.01);
+
+    return {
+      income, fixedExpenses, variableSpend, emis, totalExpenses,
+      netSurplus, savingsRate, netWorth, portfolioValue,
+      totalAssets, totalInvested, totalGain, gainPct,
+      assetBreakdown, monthlyInvestment,
+      futureCorpus, yearsToRetirement
+    };
+  }, [userProfile, twinState, portfolio]);
 
   return (
     <div className="min-h-screen bg-[#080C14] text-[#EEF2FF] font-sans pb-16">
-      <Navbar />
       
       <div className="max-w-[1400px] mx-auto p-[32px]">
         <h1 className="text-2xl font-bold mb-6">Twin Dashboard</h1>
@@ -55,32 +102,35 @@ export default function Dashboard() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <MetricCard 
-                label="Net Worth"
-                value={formatINR(twinState.estimatedNetWorth || currentTotal)}
-                subtext="↑ +₹3,20,000 this year"
-                subtextColor="green"
+                label="Portfolio Value"
+                value={formatINR(metrics.totalAssets)}
+                subtext={`${metrics.gainPct >= 0 ? '+' : ''}${metrics.gainPct.toFixed(1)}% returns`}
+                subtextColor={metrics.gainPct >= 0 ? 'green' : 'red'}
               />
               <MetricCard 
                 label="Monthly Surplus"
-                value={formatINR(netSurplus)}
-                subtext="After all expenses & EMIs"
-                subtextColor="muted"
+                value={formatINR(metrics.netSurplus)}
+                subtext="Available to invest"
+                subtextColor={metrics.netSurplus >= 0 ? 'green' : 'red'}
               />
               <MetricCard 
                 label="Savings Rate"
-                value={formatPercent(twinState.savingsRate || 0)}
-                subtext="↑ above your 25% target"
-                subtextColor="green"
+                value={`${metrics.savingsRate}%`}
+                subtext={Number(metrics.savingsRate) >= 25 ? '↑ above 25% target' : '↓ below 25% target'}
+                subtextColor={Number(metrics.savingsRate) >= 25 ? 'green' : 'amber'}
               />
               <MetricCard 
-                label="Portfolio Health"
-                value="74 / 100"
-                subtext="Moderately Optimized"
-                subtextColor="amber"
+                label="Retirement Corpus (Age 60)"
+                value={`₹${(metrics.futureCorpus / 10000000).toFixed(2)} Cr`}
+                subtext={`In ${metrics.yearsToRetirement} years at 12% p.a.`}
+                subtextColor="green"
               />
             </div>
 
             <TwinTimeline />
+
+            {/* Health Score */}
+            <HealthScore />
           </div>
 
           <div className="w-full lg:w-[40%] flex flex-col gap-6">
@@ -93,60 +143,62 @@ export default function Dashboard() {
               <div className="space-y-4 text-[14px]">
                 <div className="flex justify-between">
                   <span className="text-[#566580]">Monthly Income</span>
-                  <span className="text-[#EEF2FF] font-medium">{formatINR(income)}</span>
+                  <span className="text-[#EEF2FF] font-medium">{formatINR(metrics.income)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#566580]">Fixed Expenses</span>
-                  <span className="text-[#FF4D4D] font-medium">-{formatINR(fixedExpenses)}</span>
+                  <span className="text-[#FF4D4D] font-medium">-{formatINR(metrics.fixedExpenses)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#566580]">Variable Spend</span>
-                  <span className="text-[#F5A623] font-medium">-{formatINR(variableSpend)}</span>
+                  <span className="text-[#F5A623] font-medium">-{formatINR(metrics.variableSpend)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#566580]">EMIs</span>
-                  <span className="text-[#F5A623] font-medium">-{formatINR(emis)}</span>
+                  <span className="text-[#F5A623] font-medium">-{formatINR(metrics.emis)}</span>
                 </div>
                 
                 <div className="border-b border-white/5 my-2"></div>
                 
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[#EEF2FF] font-semibold">Net Surplus</span>
-                  <span className="text-[#00E5B8] font-bold text-[16px]">{formatINR(netSurplus)}</span>
+                  <span className={`font-bold text-[16px] ${metrics.netSurplus >= 0 ? 'text-[#00E5B8]' : 'text-[#FF4D4D]'}`}>{formatINR(metrics.netSurplus)}</span>
                 </div>
 
                 <div className="border-b border-white/5 my-2"></div>
 
                 <div className="flex justify-between">
                   <span className="text-[#566580]">Equity Portfolio</span>
-                  <span className="text-[#EEF2FF] font-medium">{formatINR(equityPortfolio)}</span>
+                  <span className="text-[#EEF2FF] font-medium">{formatINR(metrics.assetBreakdown.Equity)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#566580]">Debt Portfolio</span>
-                  <span className="text-[#EEF2FF] font-medium">{formatINR(debtPortfolio)}</span>
+                  <span className="text-[#EEF2FF] font-medium">{formatINR(metrics.assetBreakdown.Debt)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#566580]">Gold</span>
-                  <span className="text-[#EEF2FF] font-medium">{formatINR(goldPortfolio)}</span>
+                  <span className="text-[#EEF2FF] font-medium">{formatINR(metrics.assetBreakdown.Gold)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-[#566580] flex items-center gap-2">Crypto <div className="w-1.5 h-1.5 rounded-full bg-[#FF4D4D]"></div></span>
-                  <span className="text-[#EEF2FF] font-medium">{formatINR(cryptoPortfolio)}</span>
+                  <span className="text-[#EEF2FF] font-medium">{formatINR(metrics.assetBreakdown.Crypto)}</span>
                 </div>
 
                 <div className="border-b border-white/5 my-2"></div>
                 
                 <div className="flex justify-between">
                   <span className="text-[#566580]">Total Invested</span>
-                  <span className="text-[#EEF2FF] font-medium">{formatINR(totalInvested)}</span>
+                  <span className="text-[#EEF2FF] font-medium">{formatINR(metrics.totalInvested)}</span>
                 </div>
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[#EEF2FF] font-semibold">Current Value</span>
-                  <span className="text-[#22D3A5] font-bold text-[16px]">{formatINR(currentTotal)}</span>
+                  <span className="text-[#22D3A5] font-bold text-[16px]">{formatINR(metrics.totalAssets)}</span>
                 </div>
                 <div className="flex justify-between pt-1">
                   <span className="text-[#566580]">Total Returns</span>
-                  <span className="text-[#22D3A5] font-semibold text-[13px] bg-[#22D3A5]/10 px-2 py-0.5 rounded">+₹5,70,000 (+31%)</span>
+                  <span className="text-[#22D3A5] font-semibold text-[13px] bg-[#22D3A5]/10 px-2 py-0.5 rounded">
+                    {metrics.totalGain >= 0 ? '+' : ''}{formatINR(metrics.totalGain)} ({metrics.gainPct >= 0 ? '+' : ''}{metrics.gainPct.toFixed(0)}%)
+                  </span>
                 </div>
               </div>
             </div>
@@ -165,6 +217,14 @@ export default function Dashboard() {
                 Update Twin Data
               </button>
             </div>
+
+            {/* Report Generation */}
+            <ReportModal
+              profile={userProfile}
+              portfolio={portfolio}
+              simulationResult={simulationResult}
+              healthScore={healthScore}
+            />
             
           </div>
         </div>

@@ -8,6 +8,11 @@ import portfolioRouter from './routes/portfolio.js';
 import rebalanceRouter from './routes/rebalance.js';
 import projectRouter from './routes/project.js';
 import insightRouter from './routes/insight.js';
+import scenarioParseRouter from './routes/scenarioParse.js';
+import healthScoreRouter from './routes/healthScore.js';
+import goalsRouter from './routes/goals.js';
+import taxOptimizeRouter from './routes/taxOptimize.js';
+import reportRouter from './routes/report.js';
 
 const app = express();
 
@@ -18,16 +23,12 @@ const configuredOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173')
 
 app.use(cors({
   origin(origin, callback) {
-    // Allow non-browser calls (no Origin header) and configured frontends.
     if (!origin) return callback(null, true);
-
     const isConfigured = configuredOrigins.includes(origin);
     const isVercelPreview = origin.endsWith('.vercel.app');
-
     if (isConfigured || isVercelPreview) {
       return callback(null, true);
     }
-
     return callback(new Error('Not allowed by CORS'));
   },
   methods: ['GET', 'POST'],
@@ -42,7 +43,13 @@ app.use('/api/portfolio', portfolioRouter);
 app.use('/api/rebalance', rebalanceRouter);
 app.use('/api/project', projectRouter);
 app.use('/api/insight', insightRouter);
+app.use('/api/scenario-parse', scenarioParseRouter);
+app.use('/api/health-score', healthScoreRouter);
+app.use('/api/goals', goalsRouter);
+app.use('/api/tax-optimize', taxOptimizeRouter);
+app.use('/api/report', reportRouter);
 
 app.use(errorHandler);
 
 export default app;
+

@@ -22,11 +22,32 @@ const StreamingInsight = ({ userProfile, twinState, simulationResult }) => {
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let buffer = '';
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        setText(prev => prev + decoder.decode(value));
+        
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // keep incomplete line
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') break;
+            try {
+              const parsed = JSON.parse(data);
+              const token = parsed?.text || parsed?.delta?.text || parsed?.completion || '';
+              if (token) setText(prev => prev + token);
+            } catch (e) {
+              // If it's not JSON, try appending as plain text
+              if (data && data !== '[DONE]') {
+                setText(prev => prev + data);
+              }
+            }
+          }
+        }
       }
     } catch (err) {
       console.error('Streaming error:', err);
@@ -76,3 +97,4 @@ const StreamingInsight = ({ userProfile, twinState, simulationResult }) => {
 };
 
 export default StreamingInsight;
+

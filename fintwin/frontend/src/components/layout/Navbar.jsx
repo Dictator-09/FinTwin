@@ -67,7 +67,6 @@ const Navbar = () => {
 
       {/* Center: Links */}
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-        <NavLink to="/" end style={getNavLinkStyle}>Twin Home</NavLink>
         <NavLink to="/twin" style={getNavLinkStyle}>Twin Home</NavLink>
         <NavLink to="/simulator" style={getNavLinkStyle}>Simulator</NavLink>
         <NavLink to="/investments" style={getNavLinkStyle}>Investments</NavLink>

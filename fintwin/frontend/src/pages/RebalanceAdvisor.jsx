@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTwinStore } from '../store';
 import { postRebalance } from '../utils/api';
-import Navbar from '../components/layout/Navbar';
+
 import RebalanceStepCard from '../components/rebalance/RebalanceStepCard';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import { formatINR } from '../utils/formatCurrency';
@@ -35,7 +35,7 @@ export default function RebalanceAdvisor() {
 
   return (
     <div className="min-h-screen bg-[#080C14] text-[#EEF2FF] font-sans pb-16">
-      <Navbar />
+
       <div className="max-w-[1400px] mx-auto p-[32px]">
         <div className="mb-6">
           <h1 className="text-2xl font-bold">Rebalance Advisor</h1>

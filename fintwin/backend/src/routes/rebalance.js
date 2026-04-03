@@ -56,7 +56,8 @@ router.post('/', async (req, res, next) => {
       }
 
       const prompt = `You are a financial advisor. Briefly explain in MAXIMUM 15 words why we should ${actionType} ₹${Math.round(amount)} of ${item.name} to reach our optimal asset allocation. Target class allocation is ${TARGETS[item.type]*100}%.`;
-      const tip = await callClaude('You give very short financial explanations.', prompt, false);
+      const rawReason = await callClaude('You give very short financial explanations.', prompt, false);
+      const reasonText = typeof rawReason === 'string' ? rawReason.trim() : JSON.stringify(rawReason);
 
       actions.push({
         step: actions.length + 1,
@@ -65,10 +66,10 @@ router.post('/', async (req, res, next) => {
         amount: Math.round(amount),
         currentValue: Math.round(item.currentValue),
         postTradeValue: Math.round(postTradeValue),
-        reason: tip.trim(),
+        reason: reasonText,
         taxAmount: Math.round(taxAmount),
         taxType,
-        tip: tip.trim()
+        tip: reasonText
       });
     }
 

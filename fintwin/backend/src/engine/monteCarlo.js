@@ -7,6 +7,13 @@ export function percentile(sortedArr, p) {
   return sortedArr[lower] * (1 - weight) + sortedArr[upper] * weight;
 }
 
+function safeBoxMuller() {
+  let u1;
+  do { u1 = Math.random(); } while (u1 <= 0);
+  const u2 = Math.random();
+  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+}
+
 export function runMonteCarlo(userProfile, scenarioDelta = {}, years = 15, iterations = 10000) {
   const {
     income = 0,
@@ -60,14 +67,11 @@ export function runMonteCarlo(userProfile, scenarioDelta = {}, years = 15, itera
     for (let m = 0; m < months; m++) {
       const monthSurplus = monthlyIncomes[m] - monthlyExpenses[m] - emi;
       
-      let u1 = Math.random();
-      while (u1 === 0) u1 = Math.random(); // Prevent Math.log(0)
-      const u2 = Math.random();
-      
-      const z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+      const z = safeBoxMuller();
       const monthlyReturn = monthlyMean + monthlyStd * z;
       
       wealth = wealth * (1 + monthlyReturn) + monthSurplus;
+      if (!isFinite(wealth) || isNaN(wealth)) wealth = 0;
       if (wealth < 0) wealth = 0;
       
       if ((m + 1) % 12 === 0) {
