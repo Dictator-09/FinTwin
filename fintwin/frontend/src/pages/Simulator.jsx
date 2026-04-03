@@ -19,6 +19,7 @@ export default function Simulator() {
   const [isSimulating, setIsSimulating] = useState(false);
   const [horizonYears, setHorizonYears] = useState(15);
   const [mode, setMode] = useState('preset'); // 'preset' | 'freeform'
+  const [simMode, setSimMode] = useState('balanced'); // 'optimistic' | 'balanced' | 'stress-test'
 
   // What-If Comparison
   const [baselineResult, setBaselineResult] = useState(null);
@@ -36,7 +37,7 @@ export default function Simulator() {
     }
     setIsSimulating(true);
     try {
-      const result = await postSimulate(userProfile, selectedScenario, { holdings: portfolio }, horizonYears);
+      const result = await postSimulate(userProfile, selectedScenario, { holdings: portfolio }, horizonYears, 1000, simMode);
       setSimulationResult(result);
     } catch (err) {
       console.error(err);
@@ -51,7 +52,7 @@ export default function Simulator() {
 
     setIsSimulating(true);
     try {
-      const result = await postSimulateScenario(scenario, userProfile, { holdings: portfolio }, userProfile);
+      const result = await postSimulateScenario(scenario, userProfile, { holdings: portfolio }, userProfile, simMode);
       setSimulationResult(result);
     } catch (err) {
       console.error(err);
@@ -84,6 +85,13 @@ export default function Simulator() {
         worst: Math.round(d.p10),
       }))
     : [];
+
+  const getThemeColor = () => {
+    if (simMode === 'optimistic') return { main: '#22c55e', bg: '#22c55e22', border: 'border-[#22c55e]/20' };
+    if (simMode === 'stress-test') return { main: '#f97316', bg: '#f9731622', border: 'border-[#f97316]/20' }; // orange/red tone
+    return { main: '#3b82f6', bg: '#3b82f622', border: 'border-[#3b82f6]/20' }; // balanced
+  };
+  const theme = getThemeColor();
 
   // Comparison chart data
   const comparisonData = baselineResult?.yearlyPercentiles && simulationResult?.yearlyPercentiles
@@ -125,6 +133,34 @@ export default function Simulator() {
               >
                 AI Free-form
               </button>
+            </div>
+
+            {/* Sim Mode Toggle */}
+            <div className="bg-[#0F1520] border border-white/5 rounded-xl p-3">
+              <h3 className="text-[11px] uppercase tracking-widest text-[#566580] font-bold mb-3">Simulation Mode</h3>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => setSimMode('optimistic')}
+                  className={`text-left px-3 py-2 rounded-lg text-[12px] transition-colors border ${simMode === 'optimistic' ? 'bg-[#22c55e]/10 border-[#22c55e]/30 text-[#22c55e]' : 'border-transparent text-[#8A9BBF] hover:bg-white/5'}`}
+                >
+                  <div className="font-bold">Optimistic</div>
+                  <div className="text-[10px] opacity-70">High growth, low inflation</div>
+                </button>
+                <button
+                  onClick={() => setSimMode('balanced')}
+                  className={`text-left px-3 py-2 rounded-lg text-[12px] transition-colors border ${simMode === 'balanced' ? 'bg-[#3b82f6]/10 border-[#3b82f6]/30 text-[#3b82f6]' : 'border-transparent text-[#8A9BBF] hover:bg-white/5'}`}
+                >
+                  <div className="font-bold">Balanced</div>
+                  <div className="text-[10px] opacity-70">Realistic historical averages</div>
+                </button>
+                <button
+                  onClick={() => setSimMode('stress-test')}
+                  className={`text-left px-3 py-2 rounded-lg text-[12px] transition-colors border ${simMode === 'stress-test' ? 'bg-[#f97316]/10 border-[#f97316]/30 text-[#f97316]' : 'border-transparent text-[#8A9BBF] hover:bg-white/5'}`}
+                >
+                  <div className="font-bold">Stress-Test</div>
+                  <div className="text-[10px] opacity-70">Cynical, crashes, high inflation</div>
+                </button>
+              </div>
             </div>
 
             {mode === 'preset' ? (
@@ -200,6 +236,7 @@ export default function Simulator() {
                 onScenarioReady={handleScenarioReady}
                 portfolio={{ holdings: portfolio }}
                 profile={userProfile}
+                simMode={simMode}
               />
             )}
           </div>
@@ -229,7 +266,7 @@ export default function Simulator() {
                       />
                       <Area type="monotone" dataKey="best" stroke="#22c55e" fill="#22c55e22" name="Best (90th %ile)" />
                       <Area type="monotone" dataKey="good" stroke="#22D3A5" fill="#22D3A510" name="Good (75th %ile)" />
-                      <Area type="monotone" dataKey="median" stroke="#3b82f6" fill="#3b82f622" name="Median" strokeWidth={2} />
+                      <Area type="monotone" dataKey="median" stroke={theme.main} fill={theme.bg} name="Median" strokeWidth={2} />
                       <Area type="monotone" dataKey="poor" stroke="#f59e0b" fill="#f59e0b10" name="Poor (25th %ile)" />
                       <Area type="monotone" dataKey="worst" stroke="#ef4444" fill="#ef444422" name="Worst (10th %ile)" />
                     </AreaChart>
@@ -243,9 +280,9 @@ export default function Simulator() {
                     <div className="text-[18px] text-[#FF4D4D] font-bold">{formatINR(simulationResult.worstCase)}</div>
                     <div className="text-[11px] text-[#8A9BBF] mt-1">10th percentile</div>
                   </div>
-                  <div className="bg-gray-800/30 rounded-xl p-4 border border-[#3b82f6]/20">
+                  <div className={`bg-gray-800/30 rounded-xl p-4 border ${theme.border}`}>
                     <div className="text-[11px] text-[#566580] font-bold tracking-wider mb-1">MEDIAN</div>
-                    <div className="text-[18px] text-[#3b82f6] font-bold">{formatINR(simulationResult.median)}</div>
+                    <div className="text-[18px] font-bold" style={{ color: theme.main }}>{formatINR(simulationResult.median)}</div>
                     <div className="text-[11px] text-[#8A9BBF] mt-1">50th percentile</div>
                   </div>
                   <div className="bg-gray-800/30 rounded-xl p-4 border border-[#22D3A5]/10">

@@ -15,31 +15,33 @@ export const getQuotes = async (symbols) => {
 };
 
 // Legacy: string scenarioKey for predefined scenarios
-export const postSimulate = async (userProfile, scenario, portfolio, years = 15, iterations = 1000) => {
+export const postSimulate = async (userProfile, scenario, portfolio, years = 15, iterations = 1000, simMode = 'balanced') => {
   const response = await api.post('/api/simulate', {
     userProfile,
     scenario,      // B1 fix: send only 'scenario'
     portfolio,     // Pass the actual holdings
     profile: userProfile, // Pass userProfile as profile as well for proper parsing
     years,
-    iterations
+    iterations,
+    simMode
   });
   return response.data;
 };
 
 // New: full scenario object from AI parser
-export const postSimulateScenario = async (scenario, userProfile, portfolio, profile) => {
+export const postSimulateScenario = async (scenario, userProfile, portfolio, profile, simMode = 'balanced') => {
   const response = await api.post('/api/simulate', {
     scenario,
     userProfile,
     portfolio,
-    profile
+    profile,
+    simMode
   });
   return response.data;
 };
 
-export const postScenarioParse = async (userInput, portfolio, profile) => {
-  const response = await api.post('/api/scenario-parse', { userInput, portfolio, profile });
+export const postScenarioParse = async (userInput, portfolio, profile, simMode = 'balanced') => {
+  const response = await api.post('/api/scenario-parse', { userInput, portfolio, profile, simMode });
   return response.data;
 };
 

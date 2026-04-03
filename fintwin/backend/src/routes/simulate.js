@@ -95,7 +95,7 @@ function runNewMonteCarlo(params) {
 router.post('/', async (req, res, next) => {
   try {
     // Accept both 'scenario' and 'scenarioKey' — prefer 'scenario' (B1 fix)
-    const { userProfile, scenario, scenarioKey, years = 15, iterations = 5000, portfolio, profile } = req.body;
+    const { userProfile, scenario, scenarioKey, years = 15, iterations = 5000, portfolio, profile, simMode = 'balanced' } = req.body;
     const resolvedScenario = scenario || scenarioKey;
 
     // ── NEW PATH: Full scenario object from AI parser ─────────────────────
@@ -135,8 +135,20 @@ router.post('/', async (req, res, next) => {
     if (typeof monthlyContribution !== 'number' || isNaN(monthlyContribution)) {
         monthlyContribution = 0;
     }
-    const baseReturn = 0.10;
-    const baseVol = 0.15;
+    
+    let baseReturn = 0.10;
+    let baseVol = 0.15;
+    let baseInflation = 0.06;
+
+    if (simMode === 'optimistic') {
+      baseReturn = 0.14;
+      baseVol = 0.10;
+      baseInflation = 0.04;
+    } else if (simMode === 'stress-test') {
+      baseReturn = 0.06;
+      baseVol = 0.25;
+      baseInflation = 0.09;
+    }
     
     // Preset adjustments
     let scenarioName = 'Custom';
@@ -162,7 +174,7 @@ router.post('/', async (req, res, next) => {
       initialPortfolio,
       monthlyContribution,
       annualReturnRate: baseReturn,
-      inflationRate: 0.06,
+      inflationRate: baseInflation,
       volatility: volHit,
       years: years || 20,
       simulations: Math.min(iterations || 1000, 1000), // Cap at 1000

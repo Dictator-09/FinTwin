@@ -8,7 +8,7 @@ const EXAMPLE_PROMPTS = [
   "I want to invest aggressively in equity for next 10 years then shift to FD",
 ];
 
-export default function ScenarioInput({ onScenarioReady, portfolio, profile }) {
+export default function ScenarioInput({ onScenarioReady, portfolio, profile, simMode }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [parsedScenario, setParsedScenario] = useState(null);
@@ -19,7 +19,7 @@ export default function ScenarioInput({ onScenarioReady, portfolio, profile }) {
     setLoading(true);
     setError(null);
     try {
-      const data = await postScenarioParse(input, portfolio, profile);
+      const data = await postScenarioParse(input, portfolio, profile, simMode);
       if (data.success) {
         setParsedScenario(data.scenario);
         onScenarioReady(data.scenario);
