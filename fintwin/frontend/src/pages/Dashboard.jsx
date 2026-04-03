@@ -4,7 +4,6 @@ import { useTwinStore } from '../store';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import MetricCard from '../components/shared/MetricCard';
 import PersonalityCard from '../components/twin/PersonalityCard';
-import TwinTimeline from '../components/twin/TwinTimeline';
 import HealthScore from '../components/twin/HealthScore';
 import ReportModal from '../components/shared/ReportModal';
 import { formatINR } from '../utils/formatCurrency';
@@ -141,9 +140,91 @@ export default function Dashboard() {
               />
             </div>
 
-            <TwinTimeline />
+            {/* Milestone Tracker */}
+            <div className="bg-[#0F1520] border border-white/5 rounded-2xl p-6 shadow-xl">
+              <div className="flex items-center gap-2 mb-6">
+                <h3 className="text-[14px] text-[#EEF2FF] font-semibold">Milestone Tracker</h3>
+              </div>
+              <div className="space-y-6">
+                
+                {/* Emergency Fund */}
+                {(() => {
+                  const targetEmergency = metrics.totalExpenses * 6;
+                  const currentSavings = Number(userProfile.savingsAmount) || 0;
+                  const emergencyPct = Math.min(100, targetEmergency > 0 ? (currentSavings / targetEmergency) * 100 : 0);
+                  const isEmergReady = emergencyPct >= 100;
+                  return (
+                    <div>
+                      <div className="flex justify-between items-end mb-2">
+                        <div>
+                          <p className="text-[13px] font-semibold text-[#EEF2FF]">Emergency Fund</p>
+                          <p className="text-[11px] text-[#566580]">6 months of expenses</p>
+                        </div>
+                        <div className="text-right">
+                          <span className={`text-[13px] font-bold ${isEmergReady ? 'text-[#00E5B8]' : 'text-[#F5A623]'}`}>
+                            {formatINR(currentSavings)} / {formatINR(targetEmergency)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="w-full h-2 bg-[#1A2235] rounded-full overflow-hidden">
+                        <div className={`h-full ${isEmergReady ? 'bg-[#00E5B8]' : 'bg-[#F5A623]'} rounded-full`} style={{ width: `${emergencyPct}%` }}></div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
-            {/* Health Score */}
+                {/* First Crore or Next Milestone */}
+                {(() => {
+                  const targetMilestone = 10000000; // 1 Crore
+                  const currentPort = metrics.totalAssets;
+                  const milestonePct = Math.min(100, targetMilestone > 0 ? (currentPort / targetMilestone) * 100 : 0);
+                  return (
+                    <div>
+                      <div className="flex justify-between items-end mb-2">
+                        <div>
+                          <p className="text-[13px] font-semibold text-[#EEF2FF]">The First Crore</p>
+                          <p className="text-[11px] text-[#566580]">Next capital milestone</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[13px] font-bold text-[#8B7FFF]">
+                            {formatINR(currentPort)} / {formatINR(targetMilestone)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="w-full h-2 bg-[#1A2235] rounded-full overflow-hidden">
+                        <div className="h-full bg-[#8B7FFF] rounded-full" style={{ width: `${milestonePct}%` }}></div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Time to Retirement */}
+                {(() => {
+                  const targetAge = Number(userProfile.retirementAge) || 60;
+                  const currentAge = Number(userProfile.age) || 30;
+                  const retirementPct = Math.max(0, Math.min(100, ((currentAge - 20) / (targetAge - 20)) * 100)); // Assuming start at 20 loosely
+                  return (
+                    <div>
+                      <div className="flex justify-between items-end mb-2">
+                        <div>
+                          <p className="text-[13px] font-semibold text-[#EEF2FF]">Retirement Timeline</p>
+                          <p className="text-[11px] text-[#566580]">Target Age {targetAge}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[13px] font-bold text-[#00E5B8]">
+                            {Math.max(0, targetAge - currentAge)} years to go
+                          </span>
+                        </div>
+                      </div>
+                      <div className="w-full h-2 bg-[#1A2235] rounded-full overflow-hidden">
+                        <div className="h-full bg-[#00E5B8] rounded-full" style={{ width: `${retirementPct}%` }}></div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+              </div>
+            </div>
             <HealthScore />
           </div>
 

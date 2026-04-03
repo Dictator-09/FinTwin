@@ -120,27 +120,60 @@ router.post('/', async (req, res, next) => {
       return res.json({ success: true, ...result, scenarioName: resolvedScenario.scenarioName || 'Custom' });
     }
 
-    // ── LEGACY PATH: String scenarioKey with predefined deltas ────────────
-    const profileData = {
-      income: Number(userProfile?.income) || 0,
-      expenses: Number(userProfile?.expenses) || 0,
-      variableSpend: Number(userProfile?.variableSpend) || 0,
-      emi: Number(userProfile?.emi) || 0,
-      portfolioValue: Number(userProfile?.portfolioValue) || 100000
+    // ── PRESET / STRING PATH: Map keys to runNewMonteCarlo ────────────
+    const initialPortfolio = portfolio?.totalValue ||
+      (portfolio?.assets ? Object.values(portfolio.assets).reduce((s, a) => s + (a.value || 0), 0) : 0) ||
+      Number(userProfile?.portfolioValue) || 100000;
+
+    let monthlyContribution = profile?.monthlyInvestment || Number(userProfile?.monthlyIncome) * 0.2 || 10000;
+    const baseReturn = 0.12;
+    const baseVol = 0.18;
+    
+    // Preset adjustments
+    let scenarioName = 'Custom';
+    let expenseArr = [];
+    let volHit = baseVol;
+
+    if (resolvedScenario === 'pauseSIP') {
+      scenarioName = 'Pause SIP (2 Years)';
+      // Hack: deduct the SIP sum as a major expense for Y1 and Y2 since we cant turn off SIP easily
+      expenseArr.push({ year: 1, amount: monthlyContribution * 12 });
+      expenseArr.push({ year: 2, amount: monthlyContribution * 12 });
+    } else if (resolvedScenario === 'doubleSIP') {
+      scenarioName = 'Double my SIP';
+      monthlyContribution *= 2;
+    } else if (resolvedScenario === 'quitJob') {
+      scenarioName = 'Quit my job';
+      // 100% income loss for 6 months -> withdrawal required to live
+      const monthlyBurn = Number(userProfile?.expenses || 50000);
+      expenseArr.push({ year: 0, amount: (monthlyBurn + monthlyContribution) * 6 }); 
+    }
+
+    const params = {
+      initialPortfolio,
+      monthlyContribution,
+      annualReturnRate: baseReturn,
+      inflationRate: 0.06,
+      volatility: volHit,
+      years: years || 20,
+      simulations: iterations,
+      majorExpenses: expenseArr,
+      withdrawalStartYear: null,
+      withdrawalAmount: 0,
     };
 
-    const scenarioDelta = getScenarioDelta(resolvedScenario);
-    const monteCarloResult = runMonteCarlo(profileData, scenarioDelta, years, iterations);
-    
+    const newResult = runNewMonteCarlo(params);
+
     let dangerZoneMonths = 0;
-    for (const val of monteCarloResult.p10) {
-      if (val < 500000) dangerZoneMonths += 12;
+    // Map P10 back for danger zone equivalent
+    for (const p of newResult.yearlyPercentiles) {
+      if (p.p10 < 500000) dangerZoneMonths += 12; // approximate metric
     }
 
     res.json({
-      ...monteCarloResult,
+      ...newResult, // yearlyPercentiles, median, worstCase, bestCase
       scenarioKey: resolvedScenario,
-      scenarioName: scenarioDelta.name,
+      scenarioName: scenarioName,
       dangerZoneMonths
     });
   } catch (error) {

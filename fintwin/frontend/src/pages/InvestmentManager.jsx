@@ -136,36 +136,47 @@ export default function InvestmentManager() {
                 </thead>
                 <tbody>
                   {filteredPortfolio.map((item, i) => {
-                    const healthColor = item.health === 'Overexposed' ? '#FF4D4D' : item.health === 'Concentrated' ? '#F5A623' : '#22D3A5';
-                    const cagrColor = item.cagr > 12 ? '#22D3A5' : item.cagr >= 7 ? '#F5A623' : '#FF4D4D';
+                    const cVal = item.currentValue || 0;
+                    const bVal = item.costBasis || cVal;
+                    const fallbackCagr = bVal > 0 ? ((cVal / bVal) - 1) * 100 : 0;
+                    const cagr = item.cagr ?? Math.round(fallbackCagr * 10) / 10;
+                    
+                    const allocPct = item.allocation ?? Math.round((cVal / totalAllocValue) * 100);
+                    let health = item.health;
+                    if (!health) {
+                      health = allocPct > 40 ? 'Overexposed' : allocPct > 25 ? 'Concentrated' : 'Optimal';
+                    }
+
+                    const healthColor = health === 'Overexposed' ? '#FF4D4D' : health === 'Concentrated' ? '#F5A623' : '#22D3A5';
+                    const cagrColor = cagr > 12 ? '#22D3A5' : cagr >= 7 ? '#F5A623' : '#FF4D4D';
                     
                     return (
-                      <tr key={item.id || i} className={`border-b border-white/5 transition-colors hover:bg-white/[0.02] ${item.health === 'Overexposed' ? 'bg-[#FF4D4D]/[0.03]' : ''}`} style={{ borderLeft: item.health === 'Overexposed' ? '2px solid #FF4D4D' : item.health === 'Concentrated' ? '2px solid #F5A623' : '2px solid transparent' }}>
+                      <tr key={item.id || i} className={`border-b border-white/5 transition-colors hover:bg-white/[0.02] ${health === 'Overexposed' ? 'bg-[#FF4D4D]/[0.03]' : ''}`} style={{ borderLeft: health === 'Overexposed' ? '2px solid #FF4D4D' : health === 'Concentrated' ? '2px solid #F5A623' : '2px solid transparent' }}>
                         <td className="py-4 px-4">
                           <div className="text-[13px] text-[#EEF2FF] font-medium">{item.name}</div>
-                          <div className="text-[11px] text-[#566580] mt-0.5">{item.fundHouse}</div>
+                          <div className="text-[11px] text-[#566580] mt-0.5">{item.fundHouse || 'Direct'}</div>
                         </td>
                         <td className="py-4 px-4">
                           <Badge type={item.type.toLowerCase()} label={item.type} />
                         </td>
                         <td className="py-4 px-4 text-right">
-                          <div className="text-[13px] text-[#EEF2FF] font-semibold">{formatINR(item.currentValue)}</div>
+                          <div className="text-[13px] text-[#EEF2FF] font-semibold">{formatINR(cVal)}</div>
                         </td>
                         <td className="py-4 px-4">
                           <div className="flex flex-col items-center gap-1">
-                            <span className="text-[12px] text-[#8A9BBF] font-medium">{item.allocation}%</span>
+                            <span className="text-[12px] text-[#8A9BBF] font-medium">{allocPct}%</span>
                             <div className="w-12 h-[3px] bg-[#1A2235] rounded-full overflow-hidden">
-                              <div className="h-full rounded-full" style={{ width: `${item.allocation}%`, backgroundColor: currentAlloc.find(a => a.name === item.type)?.color || '#00E5B8' }}></div>
+                              <div className="h-full rounded-full" style={{ width: `${allocPct}%`, backgroundColor: currentAlloc.find(a => a.name === item.type)?.color || '#00E5B8' }}></div>
                             </div>
                           </div>
                         </td>
                         <td className="py-4 px-4 text-right">
-                          <div className="text-[13px] font-bold" style={{ color: cagrColor }}>{item.cagr}%</div>
+                          <div className="text-[13px] font-bold" style={{ color: cagrColor }}>{cagr}%</div>
                         </td>
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: healthColor }}></div>
-                            <span className="text-[11px] text-[#8A9BBF] font-medium">{item.health}</span>
+                            <span className="text-[11px] text-[#8A9BBF] font-medium">{health}</span>
                           </div>
                         </td>
                       </tr>

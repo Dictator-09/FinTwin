@@ -81,7 +81,27 @@ function generateDynamicPortfolio(profile) {
 
 router.post('/', (req, res) => {
   const profile = req.body.profile || {};
-  const dynamicPortfolio = generateDynamicPortfolio(profile);
+  let dynamicPortfolio = [];
+  if (profile.holdings && profile.holdings.length > 0) {
+    const totalCost = profile.holdings.reduce((sum, h) => sum + (h.costBasis || h.currentValue || 0), 0);
+    const totalVal = profile.holdings.reduce((sum, h) => sum + (h.currentValue || 0), 0);
+    dynamicPortfolio = profile.holdings.map((h, i) => {
+      const cVal = h.currentValue || 0;
+      const bVal = h.costBasis || cVal;
+      const fallbackCagr = bVal > 0 ? ((cVal / bVal) - 1) * 100 : 0;
+      const allocPct = Number(((cVal / (totalVal || 1)) * 100).toFixed(1));
+      
+      return {
+        ...h,
+        id: h.id || i + 1,
+        allocation: h.allocation ?? allocPct,
+        cagr: h.cagr ?? Math.round(fallbackCagr * 10) / 10,
+        health: h.health || (allocPct > 40 ? 'Overexposed' : allocPct > 25 ? 'Concentrated' : 'Optimal'),
+      };
+    });
+  } else {
+    dynamicPortfolio = generateDynamicPortfolio(profile);
+  }
 
   const totalValue = dynamicPortfolio.reduce((sum, item) => sum + item.currentValue, 0);
   const totalCost = dynamicPortfolio.reduce((sum, item) => sum + item.costBasis, 0);

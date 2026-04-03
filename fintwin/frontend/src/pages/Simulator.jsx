@@ -9,13 +9,13 @@ import StreamingInsight from '../components/simulator/StreamingInsight';
 import { formatINR } from '../utils/formatCurrency';
 
 const SCENARIOS = [
-  { key: 'quitJob', name: 'Quit my job', description: 'Go full-time freelance or take a break' },
-  { key: 'moveToBangalore', name: 'Move to Bangalore', description: 'Lower cost of living, career change' },
-  { key: 'investInCrypto', name: 'Invest in Crypto', description: 'Allocate 20% of portfolio to BTC/ETH' }
+  { key: 'quitJob', name: 'Quit my job', description: 'Lose 100% of income for 6 months to freelance, drawing from portfolio' },
+  { key: 'pauseSIP', name: 'Pause SIP for 2 Years', description: 'Stop all portfolio contributions for 24 months' },
+  { key: 'doubleSIP', name: 'Double my SIP', description: 'Increase monthly contribution by 100% permanently' }
 ];
 
 export default function Simulator() {
-  const [selectedScenario, setSelectedScenario] = useState('quitJob');
+  const [selectedScenario, setSelectedScenario] = useState('pauseSIP');
   const [isSimulating, setIsSimulating] = useState(false);
   const [horizonYears, setHorizonYears] = useState(15);
   const [mode, setMode] = useState('preset'); // 'preset' | 'freeform'
@@ -168,11 +168,13 @@ export default function Simulator() {
                     <div className="space-y-2 text-[11px]">
                       <div className="flex justify-between">
                         <span className="text-[#566580]">Risk Multiplier</span>
-                        <span className="text-[#EEF2FF] font-semibold">{selectedScenario === 'investInCrypto' ? '3.5x' : '1.0x'}</span>
+                        <span className="text-[#EEF2FF] font-semibold">1.0x</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-[#566580]">Income Hit</span>
-                        <span className="text-[#EEF2FF] font-semibold">{selectedScenario === 'quitJob' ? '-100% (6 mo)' : '0%'}</span>
+                        <span className="text-[#566580]">Contribution Impact</span>
+                        <span className="text-[#EEF2FF] font-semibold">
+                          {selectedScenario === 'pauseSIP' ? '-100% (24 mo)' : selectedScenario === 'doubleSIP' ? '+100% (Perm)' : '-100% (6 mo)'}
+                        </span>
                       </div>
                     </div>
                   </div>
