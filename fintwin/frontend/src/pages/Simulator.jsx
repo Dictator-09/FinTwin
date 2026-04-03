@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import { useTwinStore } from '../store';
 import { postSimulate, postSimulateScenario } from '../utils/api';
@@ -20,6 +20,7 @@ export default function Simulator() {
   const [horizonYears, setHorizonYears] = useState(15);
   const [mode, setMode] = useState('preset'); // 'preset' | 'freeform'
   const [simMode, setSimMode] = useState('balanced'); // 'optimistic' | 'balanced' | 'stress-test'
+  const [globalYMax, setGlobalYMax] = useState(0);
 
   // What-If Comparison
   const [baselineResult, setBaselineResult] = useState(null);
@@ -85,6 +86,22 @@ export default function Simulator() {
         worst: Math.round(d.p10),
       }))
     : [];
+
+  useEffect(() => {
+    if (chartData.length > 0) {
+      const currentPeak = Math.max(...chartData.map(d => d.best || 0));
+      if (currentPeak > globalYMax) {
+        setGlobalYMax(currentPeak);
+      }
+    } else if (simulationResult && !hasNewFormat) {
+      const currentPeak = Math.max(...(simulationResult.p90 || []));
+      if (currentPeak > globalYMax) {
+        setGlobalYMax(currentPeak);
+      }
+    }
+  }, [simulationResult, hasNewFormat]);
+
+  const yDomain = globalYMax > 0 ? [0, globalYMax * 1.1] : ['auto', 'auto'];
 
   const getThemeColor = () => {
     if (simMode === 'optimistic') return { main: '#22c55e', bg: '#22c55e22', border: 'border-[#22c55e]/20' };
@@ -246,6 +263,14 @@ export default function Simulator() {
             <div className="flex items-center justify-between">
               <h2 className="text-[16px] font-semibold text-[#EEF2FF]">Future Net Worth Projection</h2>
               <div className="flex items-center gap-4 text-[11px] font-semibold text-[#566580]">
+                {globalYMax > 0 && (
+                  <button 
+                    onClick={() => setGlobalYMax(0)}
+                    className="mr-2 px-2 py-1 bg-white/5 hover:bg-white/10 rounded border border-white/10 transition-colors"
+                  >
+                    ⟲ Reset Scale
+                  </button>
+                )}
                 <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#22D3A5]"></span> P90</span>
                 <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#3b82f6]"></span> P50</span>
                 <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#FF4D4D]"></span> P10</span>
@@ -259,7 +284,7 @@ export default function Simulator() {
                     <AreaChart data={chartData} margin={{ top: 10, right: 10, bottom: 0, left: -10 }}>
                       <CartesianGrid stroke="rgba(255,255,255,0.03)" vertical={false} />
                       <XAxis dataKey="year" tick={{ fill: '#566580', fontSize: 10 }} tickLine={false} axisLine={false} />
-                      <YAxis tickFormatter={v => `₹${(v/100000).toFixed(0)}L`} tick={{ fill: '#566580', fontSize: 10 }} tickLine={false} axisLine={false} />
+                      <YAxis domain={yDomain} tickFormatter={v => `₹${(v/100000).toFixed(0)}L`} tick={{ fill: '#566580', fontSize: 10 }} tickLine={false} axisLine={false} />
                       <RechartsTooltip
                         contentStyle={{ background: '#080C14', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px' }}
                         formatter={v => [`₹${Number(v).toLocaleString('en-IN')}`, '']}
@@ -358,7 +383,7 @@ export default function Simulator() {
                       <LineChart data={comparisonData}>
                         <CartesianGrid stroke="rgba(255,255,255,0.03)" vertical={false} />
                         <XAxis dataKey="year" tick={{ fill: '#566580', fontSize: 10 }} tickLine={false} axisLine={false} />
-                        <YAxis tickFormatter={v => `₹${(v/100000).toFixed(0)}L`} tick={{ fill: '#566580', fontSize: 10 }} tickLine={false} axisLine={false} />
+                        <YAxis domain={yDomain} tickFormatter={v => `₹${(v/100000).toFixed(0)}L`} tick={{ fill: '#566580', fontSize: 10 }} tickLine={false} axisLine={false} />
                         <Line dataKey="baseline" stroke="#6366f1" name="Baseline" strokeDasharray="5 5" />
                         <Line dataKey="scenario" stroke="#22c55e" name="Your Scenario" strokeWidth={2} />
                         <Legend />
