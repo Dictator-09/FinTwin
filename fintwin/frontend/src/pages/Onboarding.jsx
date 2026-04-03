@@ -156,9 +156,9 @@ export default function Onboarding() {
       }
       
       navigate('/twin');
-    } catch (err) {
       console.error(err);
-      setError('Failed to generate your financial twin. Please check your API key.');
+      const errorMessage = err.response?.data?.error || err.message || 'Failed to generate your financial twin.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
