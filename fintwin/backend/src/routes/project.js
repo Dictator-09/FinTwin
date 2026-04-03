@@ -5,30 +5,32 @@ const router = Router();
 
 function forecaster(portfolioAmount, equityPct, debtPct, goldPct, cryptoPct = 0, monthlyContribution = 0) {
   const years = 20;
-  const iterations = 5000;
+  const iterations = 1000;
   
-  const mean = (equityPct * 0.12) + (debtPct * 0.07) + (goldPct * 0.085) + (cryptoPct * 0.60);
-  const variance = Math.pow(equityPct * 0.18, 2) + Math.pow(debtPct * 0.03, 2) + Math.pow(goldPct * 0.12, 2) + Math.pow(cryptoPct * 0.60, 2);
+  const mean = (equityPct * 0.10) + (debtPct * 0.07) + (goldPct * 0.085) + (cryptoPct * 0.40);
+  const variance = Math.pow(equityPct * 0.15, 2) + Math.pow(debtPct * 0.03, 2) + Math.pow(goldPct * 0.12, 2) + Math.pow(cryptoPct * 0.60, 2);
   const std = Math.sqrt(variance);
   const monthlyMean = mean / 12;
   const monthlyStd = std / Math.sqrt(12);
-  const monthlyInflation = 0.06 / 12; // inflate contributions at 6% per year
   
   const resultsByYear = Array.from({ length: years }, () => new Float64Array(iterations));
 
   for (let i = 0; i < iterations; i++) {
     let wealth = portfolioAmount;
     for (let y = 0; y < years; y++) {
+      // Inflation-adjusted contribution: steps up 5% annually (applied linearly each month for simplicity)
+      const currentYearIndex = y;
+      const stepUpMultiplier = Math.pow(1.05, currentYearIndex);
+      const activeMonthlyContrib = monthlyContribution * stepUpMultiplier;
+
       // Run 12 monthly steps per year for precision
       for (let mo = 0; mo < 12; mo++) {
         let u1 = Math.random(); while(u1 === 0) u1 = Math.random();
         const u2 = Math.random();
         const z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
         const monthReturn = monthlyMean + monthlyStd * z;
-        const monthIndex = y * 12 + mo;
-        // Inflation-adjusted contribution: grows 6% per year
-        const inflatedContrib = monthlyContribution * Math.pow(1 + monthlyInflation, monthIndex);
-        wealth = wealth * (1 + monthReturn) + inflatedContrib;
+        
+        wealth = wealth * (1 + monthReturn) + activeMonthlyContrib;
         if (wealth < 0) wealth = 0;
       }
       resultsByYear[y][i] = wealth;
@@ -81,9 +83,12 @@ router.post('/', async (req, res, next) => {
     const curr = getPcts(currentPortfolio);
     const reb = getPcts(rebalancedPortfolio);
 
-    // Use actual monthly investment from profile, default to 0 if not provided
-    const monthlyContrib = Number(userProfile?.monthlyInvestment) || Number(userProfile?.income) * 0.1 || 5000;
-    const portfolioTotal = curr.total || Number(userProfile?.portfolioValue) || 100000;
+    // Use actual monthly investment from profile, defaulting safely to 0
+    let monthlyContrib = userProfile?.monthlyInvestment ?? (Number(userProfile?.income) * 0.1) ?? 5000;
+    if (typeof monthlyContrib !== 'number' || isNaN(monthlyContrib)) monthlyContrib = 0;
+    
+    let portfolioTotal = curr.total ?? Number(userProfile?.portfolioValue) ?? 100000;
+    if (isNaN(portfolioTotal)) portfolioTotal = 0;
 
     const currentReq = forecaster(portfolioTotal, curr.e, curr.d, curr.g, curr.c, monthlyContrib);
     const rebalancedReq = forecaster(reb.total || portfolioTotal, reb.e, reb.d, reb.g, reb.c, monthlyContrib);

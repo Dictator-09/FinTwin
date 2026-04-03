@@ -158,11 +158,11 @@ export default function Projections() {
           <div className="bg-[#0F1520] border border-white/5 rounded-2xl p-6 shadow-lg">
             <h3 className="text-[12px] uppercase tracking-widest text-[#00E5B8] font-bold mb-4">Assumptions</h3>
             <ul className="text-[13px] text-[#8A9BBF] space-y-2 list-disc pl-4">
-              <li>Equity CAGR bounds: 12% (σ: 18%)</li>
+              <li>Equity CAGR bounds: 10% (σ: 15%)</li>
               <li>Debt bounds: 7% (σ: 3%)</li>
               <li>Gold hedge proxy: 8.5% (σ: 12%)</li>
-              <li>Standard inflation index: 6.0%</li>
-              <li>Stochastic iterations run: 5,000 paths</li>
+              <li>Contributions step-up: 5.0% annually</li>
+              <li>Stochastic iterations run: 1,000 paths</li>
             </ul>
           </div>
           
