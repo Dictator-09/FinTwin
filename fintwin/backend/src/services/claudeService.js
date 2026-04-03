@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const MOCK_MODE = !process.env.GROQ_API_KEY;
+const MOCK_MODE = !process.env.GROQ_API_KEY && !process.env.GEMINI_API_KEY;
 
 const MOCK_PROFILE = {
   "archetype": "Balanced Achiever",
@@ -114,7 +114,10 @@ export async function callClaude(systemPrompt, userMessage, stream = false) {
     return MOCK_INSIGHT;
   }
 
-  const apiKey = process.env.GROQ_API_KEY;
+  const useGemini = !!process.env.GEMINI_API_KEY;
+  const apiKey = useGemini ? process.env.GEMINI_API_KEY : process.env.GROQ_API_KEY;
+  const baseUrl = useGemini ? 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions' : 'https://api.groq.com/openai/v1/chat/completions';
+  const modelId = useGemini ? 'gemini-1.5-flash' : 'llama-3.3-70b-versatile';
   let messages;
 
   if (stream) {
@@ -155,9 +158,9 @@ JSON Schema:
 
   try {
     const response = await axios.post(
-      'https://api.groq.com/openai/v1/chat/completions',
+      baseUrl,
       {
-        model: 'llama-3.3-70b-versatile',
+        model: modelId,
         messages,
         temperature: 0.5,
         max_tokens: 1024,
@@ -256,11 +259,15 @@ ${median > 10000000 ? 'You\'re well on track — focus on protecting this runway
     return;
   }
 
-  const apiKey = process.env.GROQ_API_KEY;
+  const useGemini = !!process.env.GEMINI_API_KEY;
+  const apiKey = useGemini ? process.env.GEMINI_API_KEY : process.env.GROQ_API_KEY;
+  const baseUrl = useGemini ? 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions' : 'https://api.groq.com/openai/v1/chat/completions';
+  const modelId = useGemini ? 'gemini-1.5-flash' : 'llama-3.3-70b-versatile';
+
   const response = await axios.post(
-    'https://api.groq.com/openai/v1/chat/completions',
+    baseUrl,
     {
-      model: 'llama-3.3-70b-versatile',
+      model: modelId,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userMessage }
