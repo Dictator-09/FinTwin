@@ -30,7 +30,6 @@ function runNewMonteCarlo(params) {
   const months = years * 12;
   const monthlyReturn = annualReturnRate / 12;
   const monthlyVolatility = volatility / Math.sqrt(12);
-  const monthlyInflation = inflationRate / 12;
 
   const results = [];
 
@@ -101,21 +100,21 @@ router.post('/', async (req, res, next) => {
 
     // ── NEW PATH: Full scenario object from AI parser ─────────────────────
     if (resolvedScenario && typeof resolvedScenario === 'object') {
-      const initialPortfolio = portfolio?.totalValue ||
-        (portfolio?.assets ? Object.values(portfolio.assets).reduce((s, a) => s + (a.value || 0), 0) : 0) ||
-        Number(userProfile?.portfolioValue) || 100000;
+      const initialPortfolio = portfolio?.totalValue ??
+        (portfolio?.assets ? Object.values(portfolio.assets).reduce((s, a) => s + (a.value || 0), 0) : null) ??
+        Number(userProfile?.portfolioValue) ?? 100000;
 
       const params = {
         initialPortfolio,
-        monthlyContribution: profile?.monthlyInvestment || resolvedScenario.additionalMonthlyInvestment || 10000,
-        annualReturnRate: resolvedScenario.annualReturnRate || 0.12,
-        inflationRate: resolvedScenario.inflationRate || 0.06,
-        volatility: resolvedScenario.volatility || 0.18,
-        years: resolvedScenario.years || years || 20,
+        monthlyContribution: profile?.monthlyInvestment ?? resolvedScenario.additionalMonthlyInvestment ?? 10000,
+        annualReturnRate: resolvedScenario.annualReturnRate ?? 0.10,
+        inflationRate: resolvedScenario.inflationRate ?? 0.06,
+        volatility: resolvedScenario.volatility ?? 0.15,
+        years: resolvedScenario.years ?? years ?? 20,
         simulations: 1000,
-        majorExpenses: resolvedScenario.majorExpenses || [],
-        withdrawalStartYear: resolvedScenario.withdrawalStartYear || null,
-        withdrawalAmount: resolvedScenario.withdrawalAmount || 0,
+        majorExpenses: resolvedScenario.majorExpenses ?? [],
+        withdrawalStartYear: resolvedScenario.withdrawalStartYear ?? null,
+        withdrawalAmount: resolvedScenario.withdrawalAmount ?? 0,
       };
 
       const result = runNewMonteCarlo(params);
@@ -123,14 +122,18 @@ router.post('/', async (req, res, next) => {
     }
 
     // ── PRESET / STRING PATH: Map keys to runNewMonteCarlo ────────────
-    const initialPortfolio = portfolio?.totalValue ||
-      (portfolio?.holdings ? portfolio.holdings.reduce((s, a) => s + (a.currentValue || a.costBasis || 0), 0) : 0) ||
-      (portfolio?.assets ? Object.values(portfolio.assets).reduce((s, a) => s + (a.value || 0), 0) : 0) ||
-      Number(userProfile?.portfolioValue) || 100000;
+    const initialPortfolio = portfolio?.totalValue ??
+      (portfolio?.holdings ? portfolio.holdings.reduce((s, a) => s + (a.currentValue ?? a.costBasis ?? 0), 0) : null) ??
+      (portfolio?.assets ? Object.values(portfolio.assets).reduce((s, a) => s + (a.value ?? 0), 0) : null) ??
+      Number(userProfile?.portfolioValue) ?? 100000;
 
-    let monthlyContribution = profile?.monthlyInvestment || userProfile?.monthlyInvestment || Number(userProfile?.monthlyIncome) * 0.2 || 0;
-    const baseReturn = 0.12;
-    const baseVol = 0.18;
+    let monthlyContribution = profile?.monthlyInvestment ?? userProfile?.monthlyInvestment ?? (Number(userProfile?.monthlyIncome) * 0.2);
+    // If somehow evaluating to NaN or undefined, coerce to 0 safely
+    if (typeof monthlyContribution !== 'number' || isNaN(monthlyContribution)) {
+        monthlyContribution = 0;
+    }
+    const baseReturn = 0.10;
+    const baseVol = 0.15;
     
     // Preset adjustments
     let scenarioName = 'Custom';
