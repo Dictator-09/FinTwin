@@ -18,10 +18,13 @@ router.post("/", async (req, res) => {
 
     // Give the frontend a meaningful error message
     const status = error.response?.status || 500;
-    const message =
-      error.response?.data?.error?.message ||
-      error.message ||
-      "Failed to generate financial twin profile.";
+    let message = error.message || "Failed to generate financial twin profile.";
+    
+    if (status === 429) {
+      message = "AI rate limit reached. Please wait a minute and try again.";
+    } else if (error.response?.data?.error?.message) {
+      message = error.response.data.error.message;
+    }
 
     res.status(status).json({ error: message });
   }
