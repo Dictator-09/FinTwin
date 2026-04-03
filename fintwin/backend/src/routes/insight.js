@@ -26,9 +26,9 @@ Monthly income: ₹${userProfile?.income || 0}
 Monthly expenses: ₹${Number(userProfile?.expenses || 0) + Number(userProfile?.variableSpend || 0) + Number(userProfile?.emi || 0)}
 Portfolio value: ₹${userProfile?.portfolioValue || 0}
 Scenario run: ${simulationResult?.scenarioName || simulationResult?.scenarioKey || 'Custom'}
-Median outcome at year 10: ₹${simulationResult?.p50?.[9] || 0}
-Worst case at year 10: ₹${simulationResult?.p10?.[9] || 0}
-Best case at year 10: ₹${simulationResult?.p90?.[9] || 0}
+Median outcome at year 10: ₹${simulationResult?.yearlyPercentiles?.[10]?.p50 || 0}
+Worst case at year 10: ₹${simulationResult?.yearlyPercentiles?.[10]?.p10 || 0}
+Best case at year 10: ₹${simulationResult?.yearlyPercentiles?.[10]?.p90 || 0}
 Danger zone months: ${simulationResult?.dangerZoneMonths || 0}`;
 
     // Use a custom writer that wraps each chunk in SSE format
