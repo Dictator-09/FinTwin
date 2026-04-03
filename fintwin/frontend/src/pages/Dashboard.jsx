@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTwinStore } from '../store';
-import { getPortfolio } from '../utils/api';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import MetricCard from '../components/shared/MetricCard';
 import PersonalityCard from '../components/twin/PersonalityCard';
@@ -142,7 +141,7 @@ export default function Dashboard() {
               />
             </div>
 
-            <TwinTimeline profile={userProfile} portfolio={portfolio} simulationResult={simulationResult} />
+            <TwinTimeline />
 
             {/* Health Score */}
             <HealthScore />
