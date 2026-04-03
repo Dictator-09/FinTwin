@@ -142,7 +142,7 @@ export default function Dashboard() {
               />
             </div>
 
-            <TwinTimeline />
+            <TwinTimeline profile={userProfile} portfolio={portfolio} simulationResult={simulationResult} />
 
             {/* Health Score */}
             <HealthScore />

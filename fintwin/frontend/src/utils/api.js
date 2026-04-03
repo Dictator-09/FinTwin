@@ -9,6 +9,11 @@ export const postProfile = async (formData) => {
   return response.data;
 };
 
+export const getQuotes = async (symbols) => {
+  const response = await api.get(`/api/quotes?symbols=${symbols}`);
+  return response.data;
+};
+
 // Legacy: string scenarioKey for predefined scenarios
 export const postSimulate = async (userProfile, scenario, years = 15, iterations = 3000) => {
   const response = await api.post('/api/simulate', {

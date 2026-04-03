@@ -29,13 +29,41 @@ export default function RebalanceAdvisor() {
   const estTax = rebalanceActions.reduce((s, a) => s + (a.taxAmount || 0), 0);
   const netCash = totalSells - totalBuys - estTax;
 
-  const currentAlloc = [
-    { label: 'Equity', before: 58, after: 65, color: '#8B7FFF' },
-    { label: 'Debt', before: 33, after: 30, color: '#00E5B8' },
-    { label: 'Gold', before: 7, after: 5, color: '#F5A623' },
-    { label: 'Crypto', before: 5, after: 0, color: '#FF4D4D' }
-  ];
+  const currentAlloc = useMemo(() => {
+    let totalValue = 0;
+    const currentMap = { Equity: 0, Debt: 0, Gold: 0, Crypto: 0 };
+    const afterMap = { Equity: 0, Debt: 0, Gold: 0, Crypto: 0 };
 
+    portfolio.forEach(item => {
+      totalValue += item.currentValue;
+      if (currentMap[item.type] !== undefined) {
+        currentMap[item.type] += item.currentValue;
+        afterMap[item.type] += item.currentValue; // Will be adjusted by trades
+      }
+    });
+
+    rebalanceActions.forEach(action => {
+      // Find asset type
+      const asset = portfolio.find(a => a.name === action.assetName);
+      if (asset && afterMap[asset.type] !== undefined) {
+        if (action.action === 'BUY') {
+          afterMap[asset.type] += action.amount;
+        } else if (action.action === 'SELL') {
+          afterMap[asset.type] -= action.amount;
+        }
+      }
+    });
+
+    const totalAfterValue = Object.values(afterMap).reduce((a,b)=>a+b, 0);
+    const safePct = (val, tot) => tot > 0 ? Math.round((val / tot) * 100) : 0;
+
+    return [
+      { label: 'Equity', before: safePct(currentMap.Equity, totalValue), after: safePct(afterMap.Equity, totalAfterValue), color: '#8B7FFF' },
+      { label: 'Debt', before: safePct(currentMap.Debt, totalValue), after: safePct(afterMap.Debt, totalAfterValue), color: '#00E5B8' },
+      { label: 'Gold', before: safePct(currentMap.Gold, totalValue), after: safePct(afterMap.Gold, totalAfterValue), color: '#F5A623' },
+      { label: 'Crypto', before: safePct(currentMap.Crypto, totalValue), after: safePct(afterMap.Crypto, totalAfterValue), color: '#FF4D4D' }
+    ];
+  }, [portfolio, rebalanceActions]);
   return (
     <div className="min-h-screen bg-[#080C14] text-[#EEF2FF] font-sans pb-16">
 

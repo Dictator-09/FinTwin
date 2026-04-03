@@ -1,13 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTwinStore } from '../store';
-import { postProfile } from '../utils/api';
+import { postProfile, getQuotes } from '../utils/api';
 
 export default function Onboarding() {
   const navigate = useNavigate();
   const setUserProfile = useTwinStore(state => state.setUserProfile);
   const setTwinState = useTwinStore(state => state.setTwinState);
   const resetAll = useTwinStore(state => state.resetAll);
+  const setPortfolio = useTwinStore(state => state.setPortfolio);
   
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
@@ -31,7 +32,10 @@ export default function Onboarding() {
     dependents: 0,
     hasHealthInsurance: false,
     hasTermInsurance: false,
+    holdings: []
   });
+  
+  const [newHolding, setNewHolding] = useState({ name: '', type: 'Equity', units: '', costBasis: '' });
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -99,6 +103,28 @@ export default function Onboarding() {
       
       const twinResult = await postProfile(profile);
       setTwinState(twinResult);
+
+      // If user built a custom portfolio, fetch live prices and set it
+      if (formData.holdings.length > 0) {
+        const enrichedHoldings = [...formData.holdings];
+        const symbols = enrichedHoldings.map(h => h.name).join(',');
+        try {
+          const quotes = await getQuotes(symbols);
+          enrichedHoldings.forEach(h => {
+             const quote = quotes[h.name];
+             if (quote && quote.price) {
+               h.currentValue = h.units * quote.price;
+             } else {
+               // Fallback
+               h.currentValue = h.units * h.costBasis;
+             }
+             h.costBasis = h.units * h.costBasis;
+          });
+          setPortfolio(enrichedHoldings);
+        } catch (err) {
+          console.error("Quote error", err);
+        }
+      }
       
       navigate('/twin');
     } catch (err) {
@@ -121,20 +147,20 @@ export default function Onboarding() {
         
         {/* Step Indicator */}
         <div className="flex items-center justify-center gap-2 mb-6">
-          {[0, 1].map(step => (
+          {[0, 1, 2].map(step => (
             <div key={step} className="flex items-center gap-2">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold transition-colors ${
                 currentStep === step ? 'bg-[#00E5B8] text-[#080C14]' : currentStep > step ? 'bg-[#22D3A5]/20 text-[#22D3A5]' : 'bg-[#1A2235] text-[#566580]'
               }`}>
                 {currentStep > step ? '✓' : step + 1}
               </div>
-              {step < 1 && <div className={`w-12 h-[2px] ${currentStep > step ? 'bg-[#22D3A5]' : 'bg-[#1A2235]'}`} />}
+              {step < 2 && <div className={`w-8 h-[2px] ${currentStep > step ? 'bg-[#22D3A5]' : 'bg-[#1A2235]'}`} />}
             </div>
           ))}
         </div>
         
         <h2 className="text-[14px] font-semibold mb-4 text-center text-[#566580] uppercase tracking-widest">
-          {currentStep === 0 ? 'Build Your Financial Twin' : 'Your Monthly Cash Flow'}
+          {currentStep === 0 ? 'Build Your Financial Twin' : currentStep === 1 ? 'Your Monthly Cash Flow' : 'Actual Portfolio Entry'}
         </h2>
         
         {error && (
@@ -298,13 +324,81 @@ export default function Onboarding() {
                   ← Back
                 </button>
                 <button 
+                  type="button"
+                  onClick={() => setCurrentStep(2)}
+                  className="flex-1 bg-[#00E5B8] hover:bg-[#00C29A] text-[#080C14] font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                  Next: Portfolio Entry →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {currentStep === 2 && (
+            <div className="space-y-4">
+              <p className="text-[12px] text-[#8A9BBF] text-center mb-4">Enter real portfolio holdings limit to top 5. Leave empty to use system estimates.</p>
+              
+              <div className="bg-[#141B28] rounded-xl p-4 border border-white/5 space-y-3">
+                <div className="grid grid-cols-12 gap-2 text-[11px] text-[#566580] uppercase tracking-wider font-bold">
+                  <div className="col-span-4">Asset Symbol</div>
+                  <div className="col-span-3">Class</div>
+                  <div className="col-span-2">Units</div>
+                  <div className="col-span-3">Buy Price (₹)</div>
+                </div>
+                
+                {formData.holdings.map((h, i) => (
+                  <div key={i} className="grid grid-cols-12 gap-2 text-[13px] items-center border-b border-white/5 pb-2">
+                    <div className="col-span-4 text-[#EEF2FF]">{h.name}</div>
+                    <div className="col-span-3 text-[#EEF2FF]">{h.type}</div>
+                    <div className="col-span-2 text-[#EEF2FF]">{h.units}</div>
+                    <div className="col-span-3 text-[#EEF2FF]">₹{h.costBasis}</div>
+                  </div>
+                ))}
+
+                {formData.holdings.length < 10 && (
+                  <div className="grid grid-cols-12 gap-2">
+                    <input className={`col-span-4 ${inputStyle} py-1.5 px-2`} value={newHolding.name} onChange={e => setNewHolding({...newHolding, name: e.target.value})} placeholder="RELIANCE" />
+                    <select className={`col-span-3 ${inputStyle} py-1.5 px-1 appearance-none`} value={newHolding.type} onChange={e => setNewHolding({...newHolding, type: e.target.value})}>
+                      <option value="Equity">Equity</option>
+                      <option value="Debt">Debt</option>
+                      <option value="Gold">Gold</option>
+                      <option value="Crypto">Crypto</option>
+                    </select>
+                    <input type="number" className={`col-span-2 ${inputStyle} py-1.5 px-2`} value={newHolding.units} onChange={e => setNewHolding({...newHolding, units: Number(e.target.value)})} placeholder="10" />
+                    <input type="number" className={`col-span-3 ${inputStyle} py-1.5 px-2`} value={newHolding.costBasis} onChange={e => setNewHolding({...newHolding, costBasis: Number(e.target.value)})} placeholder="2500" />
+                  </div>
+                )}
+                
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    if(newHolding.name && newHolding.units && newHolding.costBasis) {
+                      setFormData(prev => ({...prev, holdings: [...prev.holdings, newHolding]}));
+                      setNewHolding({ name: '', type: 'Equity', units: '', costBasis: '' });
+                    }
+                  }}
+                  className="w-full mt-2 py-2 text-[12px] text-[#00E5B8] border border-[#00E5B8]/30 rounded-lg font-bold tracking-wider hover:bg-[#00E5B8]/10"
+                >
+                  + ADD ASSET
+                </button>
+              </div>
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(1)}
+                  className="flex-1 bg-transparent border border-[#566580] text-[#EEF2FF] font-semibold py-3 px-4 rounded-xl transition-all hover:bg-white/5"
+                >
+                  ← Back
+                </button>
+                <button 
                   type="submit"
                   disabled={isLoading}
-                  className="flex-1 bg-[#00E5B8] hover:bg-[#00C29A] text-[#080C14] font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+                  className="flex-none w-3/5 bg-[#00E5B8] hover:bg-[#00C29A] text-[#080C14] font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
                 >
                   {isLoading ? (
                     <div className="w-5 h-5 border-2 border-[#080C14] border-t-transparent rounded-full animate-spin"></div>
-                  ) : 'Initialize Twin →'}
+                  ) : formData.holdings.length > 0 ? 'Init Twin using Portfolio →' : 'Skip & Init Estimated →'}
                 </button>
               </div>
             </div>

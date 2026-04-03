@@ -13,7 +13,7 @@ import healthScoreRouter from './routes/healthScore.js';
 import goalsRouter from './routes/goals.js';
 import taxOptimizeRouter from './routes/taxOptimize.js';
 import reportRouter from './routes/report.js';
-
+import quotesRouter from './routes/quotes.js';
 const app = express();
 
 const configuredOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173')
@@ -48,7 +48,7 @@ app.use('/api/health-score', healthScoreRouter);
 app.use('/api/goals', goalsRouter);
 app.use('/api/tax-optimize', taxOptimizeRouter);
 app.use('/api/report', reportRouter);
-
+app.use('/api/quotes', quotesRouter);
 app.use(errorHandler);
 
 export default app;

@@ -1,15 +1,52 @@
 import React from 'react';
 
-const TwinTimeline = () => {
+const TwinTimeline = ({ profile = {}, simulationResult = null }) => {
+  const currentAge = Number(profile.age) || 28;
+  const retirementAge = Number(profile.retirementAge) || 60;
+  const currentYear = new Date().getFullYear();
+  
   const milestones = [
-    { label: 'Started investing', subtitle: 'Age 22', status: 'past' },
-    { label: 'Emergency fund', subtitle: 'Age 25', status: 'past' },
-    { label: 'First 10L', subtitle: 'Age 27', status: 'past' },
-    { label: 'NOW — Age 28', subtitle: 'Current', status: 'current' },
-    { label: 'First Crore', subtitle: '2029', status: 'future', prob: '84%' },
-    { label: 'Home Purchase', subtitle: '2031', status: 'future', prob: '62%' },
-    { label: 'Financial Independence', subtitle: '2041', status: 'future', prob: '41%' }
+    { label: 'Started investing', subtitle: `Age ${Math.max(22, currentAge - 5)}`, status: 'past' },
+    { label: `NOW — Age ${currentAge}`, subtitle: 'Current', status: 'current' }
   ];
+
+  let firstCroreYear = currentYear + 3;
+  let firstCroreProb = '50%';
+  let fiYear = currentYear + 10;
+  let fiProb = '40%';
+
+  if (simulationResult && simulationResult.timeline) {
+    const timeline = simulationResult.timeline;
+    
+    // First Crore target
+    const croreIdx = timeline.findIndex(t => t.p50 >= 10000000);
+    if (croreIdx !== -1) {
+      firstCroreYear = currentYear + croreIdx;
+      firstCroreProb = timeline[croreIdx].p90 >= 10000000 ? '90%+' : '75%';
+    } else {
+      firstCroreYear = currentYear + timeline.length;
+      firstCroreProb = '<10%';
+    }
+
+    // FI target = 300x monthly expenses
+    const monthlyExpenses = Number(profile.expenses || profile.monthlyExpenses || 50000);
+    const fiTarget = monthlyExpenses * 300;
+    const fiIdx = timeline.findIndex(t => t.p50 >= fiTarget);
+    if (fiIdx !== -1) {
+      fiYear = currentYear + fiIdx;
+      fiProb = timeline[fiIdx].p90 >= fiTarget ? '80%' : '55%';
+    } else {
+      fiYear = currentYear + timeline.length;
+      fiProb = '<5%';
+    }
+  }
+
+  milestones.push({ label: 'First Crore', subtitle: `${firstCroreYear}`, status: 'future', prob: firstCroreProb });
+  if (fiYear > firstCroreYear) {
+    milestones.push({ label: 'Financial Independence', subtitle: `${fiYear}`, status: 'future', prob: fiProb });
+  }
+  milestones.push({ label: 'Retirement Phase', subtitle: `Age ${retirementAge}`, status: 'future', prob: 'High' });
+
 
   return (
     <div className="rounded-2xl p-8 border border-white/5 relative overflow-hidden shadow-lg mt-6" style={{ backgroundColor: '#0F1520' }}>
