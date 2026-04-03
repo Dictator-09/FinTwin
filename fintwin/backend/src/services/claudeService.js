@@ -114,10 +114,20 @@ export async function callClaude(systemPrompt, userMessage, stream = false) {
     return MOCK_INSIGHT;
   }
 
+  const useGroq = !!process.env.GROQ_API_KEY;
   const useGemini = !!process.env.GEMINI_API_KEY;
-  const apiKey = useGemini ? process.env.GEMINI_API_KEY : process.env.GROQ_API_KEY;
-  const baseUrl = useGemini ? 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions' : 'https://api.groq.com/openai/v1/chat/completions';
-  const modelId = useGemini ? 'gemini-2.0-flash' : 'llama-3.3-70b-versatile';
+  
+  let apiKey = process.env.GROQ_API_KEY;
+  let baseUrl = 'https://api.groq.com/openai/v1/chat/completions';
+  let modelId = 'llama-3.3-70b-versatile';
+
+  if (!apiKey && useGemini) {
+    apiKey = process.env.GEMINI_API_KEY;
+    baseUrl = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+    modelId = 'gemini-2.0-flash';
+  }
+  
+  const currentProvider = baseUrl.includes('google') ? 'Gemini' : 'Groq';
   let messages;
 
   if (stream) {
@@ -157,6 +167,7 @@ JSON Schema:
   }
 
   try {
+    console.log(`🤖 AI Request: Using ${currentProvider} (${modelId})`);
     const response = await axios.post(
       baseUrl,
       {
@@ -183,7 +194,30 @@ JSON Schema:
       return content;
     }
   } catch (error) {
-    console.error('❌ Groq API error:', error.message);
+    const isRateLimitOrAuth = error.response?.status === 429 || error.response?.status === 401;
+    
+    // Automatic Fallback from Groq to Gemini if Groq fails
+    if (useGroq && useGemini && !baseUrl.includes('google') && isRateLimitOrAuth) {
+      console.warn('⚠️ Groq limit reached or key invalid. Falling back to Gemini...');
+      const geminiApiKey = process.env.GEMINI_API_KEY;
+      const geminiBaseUrl = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+      const geminiModelId = 'gemini-2.0-flash';
+      
+      try {
+        const geminiResponse = await axios.post(
+          geminiBaseUrl,
+          { model: geminiModelId, messages, temperature: 0.5, max_tokens: 1024, stream },
+          { headers: { Authorization: `Bearer ${geminiApiKey}`, 'Content-Type': 'application/json' }, timeout: 30000 }
+        );
+        const gContent = geminiResponse.data.choices[0].message.content.trim();
+        const gJsonMatch = gContent.match(/\{[\s\S]*\}/);
+        return gJsonMatch ? JSON.parse(gJsonMatch[0]) : gContent;
+      } catch (geminiErr) {
+        console.error('❌ Both Groq and Gemini failed:', geminiErr.message);
+      }
+    }
+
+    console.error(`❌ AI API error:`, error.message);
     throw error;
   }
 }
