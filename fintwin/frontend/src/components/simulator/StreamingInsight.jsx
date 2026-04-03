@@ -23,46 +23,59 @@ const StreamingInsight = ({ userProfile, twinState, simulationResult }) => {
     setText('');
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/insight`, {
+      // Clean up base URL to handle trailing slashes
+      const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+      const apiUrl = `${baseUrl}/api/insight`;
+
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ simulationResult, userProfile, twinState })
       });
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API Error ${response.status}: ${errorText || response.statusText}`);
+      }
+
       if (!response.body) throw new Error('No response body');
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
+      let streamBuffer = '';
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop(); // keep incomplete line
+        streamBuffer += decoder.decode(value, { stream: true });
+        
+        // Split by SSE data segments
+        let parts = streamBuffer.split('\n\n');
+        streamBuffer = parts.pop() || ''; // Keep the incomplete last segment
 
-        for (const line of lines) {
+        for (const part of parts) {
+          const line = part.trim();
           if (line.startsWith('data: ')) {
             const data = line.slice(6).trim();
-            if (data === '[DONE]') break;
+            if (data === '[DONE]') {
+              setIsStreaming(false);
+              return;
+            }
             try {
               const parsed = JSON.parse(data);
-              const token = parsed?.text || parsed?.delta?.text || parsed?.completion || '';
+              const token = parsed?.text || parsed?.delta?.content || parsed?.content || '';
               if (token) setText(prev => prev + token);
-            } catch {
-              // If it's not JSON, try appending as plain text
-              if (data && data !== '[DONE]') {
-                setText(prev => prev + data);
-              }
+            } catch (e) {
+              // If not JSON, it might be raw text from the stream (fallback)
+              if (data) setText(prev => prev + data);
             }
           }
         }
       }
     } catch (err) {
-      console.error('Streaming error:', err);
-      setText(prev => prev + '\n\n[Error generating insight]');
+      console.error('Streaming error details:', err);
+      setText(prev => prev + `\n\n[System]: Failed to generate insight. ${err.message}`);
     } finally {
       setIsStreaming(false);
     }

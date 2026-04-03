@@ -280,17 +280,18 @@ ${median > 10000000 ? 'You\'re well on track — focus on protecting this runway
     response.data.on('data', (chunk) => {
       buffer += chunk.toString();
       const lines = buffer.split('\n');
-      buffer = lines.pop();
+      buffer = lines.pop() || '';
       for (const line of lines) {
         const trimmed = line.trim();
-        if (!trimmed) continue;
-        if (trimmed.startsWith('data: ')) {
-          if (trimmed === 'data: [DONE]') continue;
-          try {
-            const json = JSON.parse(trimmed.slice(6));
-            const content = json.choices?.[0]?.delta?.content;
-            if (content) res.write(content);
-          } catch (e) {}
+        if (!trimmed || !trimmed.startsWith('data: ')) continue;
+        const data = trimmed.slice(6).trim();
+        if (data === '[DONE]') continue;
+        try {
+          const json = JSON.parse(data);
+          const content = json.choices?.[0]?.delta?.content || json.choices?.[0]?.text || '';
+          if (content) res.write(content);
+        } catch (e) {
+          // ignore partial JSON errors
         }
       }
     });
