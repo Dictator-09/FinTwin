@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const MOCK_MODE = process.env.MOCK_AI === 'true' || !process.env.GROQ_API_KEY;
+const MOCK_MODE = !process.env.GROQ_API_KEY;
 
 const MOCK_PROFILE = {
   "archetype": "Balanced Achiever",
