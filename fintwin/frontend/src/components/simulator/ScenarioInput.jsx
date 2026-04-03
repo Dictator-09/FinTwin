@@ -28,7 +28,8 @@ export default function ScenarioInput({ onScenarioReady, portfolio, profile, sim
       }
     } catch (err) {
       console.error(err);
-      setError('Failed to connect to AI service');
+      const errorMessage = err.response?.data?.error || err.message || 'Failed to connect to AI service';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

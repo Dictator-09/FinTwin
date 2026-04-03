@@ -63,8 +63,17 @@ Parse this into simulation parameters.`;
 
     res.json({ success: true, scenario: parsed });
   } catch (err) {
-    console.error('Scenario parse error:', err);
-    res.status(500).json({ success: false, error: err.message });
+    console.error('Scenario parse error:', err.message);
+    const status = err.response?.status || 500;
+    let errorMessage = err.message;
+    
+    if (status === 429) {
+      errorMessage = "AI rate limit reached. Please wait a few seconds and try again.";
+    } else if (err.response?.data?.error?.message) {
+      errorMessage = err.response.data.error.message;
+    }
+    
+    res.status(status).json({ success: false, error: errorMessage });
   }
 });
 
