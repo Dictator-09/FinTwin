@@ -191,10 +191,67 @@ JSON Schema:
 export async function callGroqStream(systemPrompt, userMessage, res) {
   if (MOCK_MODE) {
     console.log('⚠️ AI Stream Mock Mode Active');
-    const words = MOCK_INSIGHT.split(' ');
+    
+    // Parse numbers from the structured userMessage to generate context-aware insight
+    const extractNum = (label) => {
+      const match = userMessage.match(new RegExp(label + '.*?₹?([\\d,]+)', 'i'));
+      return match ? Number(match[1].replace(/,/g, '')) : 0;
+    };
+    const scenarioMatch = userMessage.match(/Scenario run:\s*(.*)/i);
+    const scenarioName = scenarioMatch ? scenarioMatch[1].trim() : 'Custom';
+    const archetypeMatch = userMessage.match(/User archetype:\s*(.*)/i);
+    const archetype = archetypeMatch ? archetypeMatch[1].trim() : 'Unknown';
+    const income = extractNum('Monthly income');
+    const expenses = extractNum('Monthly expenses');
+    const median = extractNum('Median outcome');
+    const worst = extractNum('Worst case');
+    const best = extractNum('Best case');
+    const dangerMonths = extractNum('Danger zone months');
+    
+    const surplus = income - expenses;
+    const surplusPercent = income > 0 ? ((surplus / income) * 100).toFixed(0) : 0;
+    
+    let insight;
+    
+    if (scenarioName.toLowerCase().includes('pause') || scenarioName.toLowerCase().includes('quit') || scenarioName.toLowerCase().includes('loss') || scenarioName.toLowerCase().includes('back')) {
+      // Negative scenario
+      insight = `⚠️ This "${scenarioName}" scenario exposes a critical vulnerability. Your portfolio's worst-case drops to ₹${worst.toLocaleString('en-IN')}, which would leave you with limited financial runway. ${dangerMonths > 0 ? `You'd spend roughly ${dangerMonths} months in the financial danger zone.` : ''}
+
+As a "${archetype}" personality, your instinct may be to ride it out — but this scenario demands proactive defense. Your monthly surplus of ₹${surplus.toLocaleString('en-IN')} (${surplusPercent}% of income) ${surplus > 30000 ? 'gives you a decent buffer' : 'is razor-thin for this kind of shock'}.
+
+1. Build an emergency fund covering 6 months of expenses (₹${(expenses * 6).toLocaleString('en-IN')}) before this scenario materializes.
+2. ${surplus > 20000 ? 'Redirect at least ₹15,000/mo into a liquid debt fund as insurance.' : 'Cut discretionary spending immediately to build a minimum ₹50,000 buffer.'}
+3. Consider term insurance or income protection coverage to hedge against income loss.
+
+${median > worst * 2 ? 'The gap between your median and worst case is wide — volatility is your enemy here. Stay disciplined.' : 'Your outcomes are tightly clustered, so even the worst case is manageable if you prepare now.'}`;
+    } else if (scenarioName.toLowerCase().includes('double') || scenarioName.toLowerCase().includes('wealth') || scenarioName.toLowerCase().includes('aggressive')) {
+      // Positive scenario
+      insight = `🚀 This "${scenarioName}" scenario reveals the incredible power of compounding discipline. Your median outcome of ₹${median.toLocaleString('en-IN')} is a testament to what consistent investing can achieve over time.
+
+As a "${archetype}", you have the temperament to stick with this strategy. Your current surplus of ₹${surplus.toLocaleString('en-IN')}/mo provides the fuel. The best-case projection of ₹${best.toLocaleString('en-IN')} shows the upside if markets cooperate.
+
+1. Lock in this doubled SIP commitment via auto-debit — willpower fades, automation doesn't.
+2. Diversify across large-cap index funds (60%), mid-cap (25%), and international equity (15%) to maximize risk-adjusted returns.
+3. Review and rebalance every 6 months to maintain your target allocation as markets shift.
+
+You're building real generational wealth. The hardest part isn't the math — it's the patience. Keep going.`;
+    } else {
+      // Default / average scenario
+      insight = `📊 Running "${scenarioName}" shows a median portfolio value of ₹${median.toLocaleString('en-IN')} — ${median > 5000000 ? 'a solid trajectory' : 'modest growth that could be improved'}. Your worst-case of ₹${worst.toLocaleString('en-IN')} vs best-case of ₹${best.toLocaleString('en-IN')} shows a ${best > worst * 3 ? 'wide spread driven by market volatility' : 'relatively tight range, suggesting low-risk positioning'}.
+
+Your "${archetype}" profile with ₹${surplus.toLocaleString('en-IN')}/mo surplus (${surplusPercent}% savings rate) ${Number(surplusPercent) > 30 ? 'is well above the Indian average — excellent discipline' : 'has room for improvement to build faster wealth'}.
+
+1. ${Number(surplusPercent) > 25 ? 'Consider allocating an additional 10% of surplus to equity SIPs for faster compounding.' : 'Focus on increasing your savings rate to at least 25% before optimizing investments.'}
+2. Ensure at least 3 months expenses (₹${(expenses * 3).toLocaleString('en-IN')}) sit in a liquid emergency fund.
+3. Tax-harvest any underperforming holdings before March to offset capital gains.
+
+${median > 10000000 ? 'You\'re well on track — focus on protecting this runway rather than chasing higher returns.' : 'Small consistent improvements in savings rate will compound dramatically over the next decade.'}`;
+    }
+
+    const words = insight.split(' ');
     for (let i = 0; i < words.length; i++) {
        res.write(words[i] + ' ');
-       await new Promise(r => setTimeout(r, 50));
+       await new Promise(r => setTimeout(r, 30));
     }
     return;
   }
