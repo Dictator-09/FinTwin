@@ -56,8 +56,8 @@ export const postReportGenerate = async (profile, portfolio, simulationResult, h
   return response.data;
 };
 
-export const getPortfolio = async () => {
-  const response = await api.get('/api/portfolio');
+export const postPortfolio = async (profile) => {
+  const response = await api.post('/api/portfolio', { profile });
   return response.data;
 };
 
@@ -66,8 +66,8 @@ export const postRebalance = async (portfolio) => {
   return response.data;
 };
 
-export const postProject = async (currentPortfolio, rebalancedPortfolio) => {
-  const response = await api.post('/api/project', { currentPortfolio, rebalancedPortfolio });
+export const postProject = async (currentPortfolio, rebalancedPortfolio, userProfile) => {
+  const response = await api.post('/api/project', { currentPortfolio, rebalancedPortfolio, userProfile });
   return response.data;
 };
 

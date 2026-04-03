@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { useTwinStore } from '../store';
-import { getPortfolio } from '../utils/api';
+import { postPortfolio, postHealthScore } from '../utils/api';
 
 import MetricCard from '../components/shared/MetricCard';
 import Badge from '../components/shared/Badge';
@@ -12,6 +12,9 @@ export default function InvestmentManager() {
   const navigate = useNavigate();
   const rawPortfolio = useTwinStore(state => state.portfolio);
   const setPortfolio = useTwinStore(state => state.setPortfolio);
+  const userProfile = useTwinStore(state => state.userProfile);
+  const healthScore = useTwinStore(state => state.healthScore);
+  const setHealthScore = useTwinStore(state => state.setHealthScore);
   
   const portfolio = useMemo(() => rawPortfolio || [], [rawPortfolio]);
 
@@ -19,12 +22,20 @@ export default function InvestmentManager() {
   const [filterType, setFilterType] = useState('All');
 
   useEffect(() => {
-    if (portfolio.length === 0) {
-      getPortfolio().then(res => {
+    if (portfolio.length === 0 && userProfile) {
+      postPortfolio(userProfile).then(res => {
         if (res && res.holdings) setPortfolio(res.holdings);
       }).catch(console.error);
     }
-  }, [portfolio, setPortfolio]);
+  }, [portfolio, userProfile, setPortfolio]);
+
+  useEffect(() => {
+    if (portfolio.length > 0 && userProfile) {
+      postHealthScore(userProfile, portfolio).then(res => {
+        if (res) setHealthScore(res);
+      }).catch(console.error);
+    }
+  }, [portfolio, userProfile, setHealthScore]);
 
   const filteredPortfolio = portfolio.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -36,18 +47,32 @@ export default function InvestmentManager() {
   const totalInvested = portfolio.reduce((s, i) => s + (i.costBasis || 0), 0);
   const currentValue = portfolio.reduce((s, i) => s + (i.currentValue || 0), 0);
   
+  const currentAllocMap = { Equity: 0, Debt: 0, Gold: 0, Crypto: 0 };
+  portfolio.forEach(h => currentAllocMap[h.type] = (currentAllocMap[h.type] || 0) + (h.currentValue || 0));
+  const totalAllocValue = Object.values(currentAllocMap).reduce((a,b)=>a+b, 0) || 1;
+  
   const currentAlloc = [
-    { name: 'Equity', value: 58, color: '#8B7FFF' },
-    { name: 'Debt', value: 33, color: '#00E5B8' },
-    { name: 'Gold', value: 7, color: '#F5A623' },
-    { name: 'Crypto', value: 5, color: '#FF4D4D' }
-  ];
+    { name: 'Equity', value: Math.round((currentAllocMap.Equity / totalAllocValue)*100), color: '#8B7FFF' },
+    { name: 'Debt', value: Math.round((currentAllocMap.Debt / totalAllocValue)*100), color: '#00E5B8' },
+    { name: 'Gold', value: Math.round((currentAllocMap.Gold / totalAllocValue)*100), color: '#F5A623' },
+    { name: 'Crypto', value: Math.round((currentAllocMap.Crypto / totalAllocValue)*100), color: '#FF4D4D' }
+  ].filter(a => a.value > 0);
+
+  const age = Number(userProfile?.age) || 30;
+  const recEquity = Math.max(0, 100 - age);
+  const recDebt = Math.max(0, 100 - recEquity - 5); // 5% for gold
+  
   const recommendedAlloc = [
-    { name: 'Equity', value: 65, color: '#8B7FFF' },
-    { name: 'Debt', value: 30, color: '#00E5B8' },
+    { name: 'Equity', value: recEquity, color: '#8B7FFF' },
+    { name: 'Debt', value: recDebt, color: '#00E5B8' },
     { name: 'Gold', value: 5, color: '#F5A623' },
     { name: 'Crypto', value: 0, color: '#FF4D4D' }
   ];
+
+  const riskMetrics = healthScore?.breakdown?.find(b => b.category === 'Asset Mix & Risk')?.metrics || 
+                      { concentrationRisk: 30, volatilityRisk: 50, liquidityRisk: 20 };
+  const riskScore = Math.max(0, Math.round(100 - (riskMetrics.concentrationRisk * 0.4 + riskMetrics.volatilityRisk * 0.4 + riskMetrics.liquidityRisk * 0.2)));
+  const riskLabel = riskScore > 80 ? 'Conservative' : riskScore > 60 ? 'Moderate' : 'Aggressive';
 
   return (
     <div className="min-h-screen bg-[#080C14] text-[#EEF2FF] font-sans pb-16">
@@ -68,9 +93,9 @@ export default function InvestmentManager() {
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <MetricCard label="Total Invested" value={formatINR(totalInvested || 0)} />
-          <MetricCard label="Current Value" value={formatINR(currentValue || 0)} subtext="+₹5,70,000" subtextColor="green" />
-          <MetricCard label="XIRR" value="14.2%" subtext="Beat benchmark by 2%" subtextColor="green" />
-          <MetricCard label="Risk Score" value="72 / 100" subtext="Moderately Aggressive" subtextColor="amber" />
+          <MetricCard label="Current Value" value={formatINR(currentValue || 0)} subtext={currentValue > totalInvested ? `+${formatINR(currentValue - totalInvested)}` : `${formatINR(currentValue - totalInvested)}`} subtextColor={currentValue >= totalInvested ? "green" : "red"} />
+          <MetricCard label="XIRR" value="~12.4%" subtext="Estimated" subtextColor="green" />
+          <MetricCard label="Risk Score" value={`${riskScore} / 100`} subtext={riskLabel} subtextColor={riskScore > 60 ? "green" : "amber"} />
         </div>
 
         <div className="flex flex-col lg:flex-row gap-[24px] items-start">
@@ -190,10 +215,10 @@ export default function InvestmentManager() {
                 </div>
               </div>
               <div className="flex flex-wrap justify-center gap-3 mt-6">
-                <Badge type="equity" label="Eq: 58% → 65%" />
-                <Badge type="debt" label="Db: 33% → 30%" />
-                <Badge type="gold" label="Au: 7% → 5%" />
-                <Badge type="crypto" label="Cr: 5% → 0%" />
+                {currentAlloc.map(alloc => {
+                  const rec = recommendedAlloc.find(r => r.name === alloc.name)?.value || 0;
+                  return <Badge key={alloc.name} type={alloc.name.toLowerCase()} label={`${alloc.name.substring(0,2)}: ${alloc.value}% → ${rec}%`} />
+                })}
               </div>
             </div>
 
@@ -215,40 +240,40 @@ export default function InvestmentManager() {
                   />
                 </svg>
                 <div className="absolute bottom-1 flex flex-col items-center">
-                  <span className="text-[28px] font-bold text-[#EEF2FF]">72</span>
-                  <span className="text-[11px] text-[#F5A623] font-semibold">Moderately Aggressive</span>
+                  <span className="text-[28px] font-bold text-[#EEF2FF]">{healthScore?.totalScore || riskScore}</span>
+                  <span className="text-[11px] text-[#F5A623] font-semibold">{healthScore?.grade ? `Health Grade: ${healthScore.grade}` : riskLabel}</span>
                 </div>
               </div>
 
               <div className="w-full mt-6 space-y-3">
                 <div className="flex justify-between items-center text-[12px]">
                   <span className="text-[#8A9BBF]">Concentration Risk</span>
-                  <span className="text-[#F5A623] font-semibold">68%</span>
+                  <span className="text-[#F5A623] font-semibold">{riskMetrics.concentrationRisk}%</span>
                 </div>
-                <div className="w-full h-1 bg-[#1A2235] rounded-full"><div className="h-full bg-[#F5A623] rounded-full w-[68%]"></div></div>
+                <div className="w-full h-1 bg-[#1A2235] rounded-full"><div className="h-full bg-[#F5A623] rounded-full" style={{ width: `${riskMetrics.concentrationRisk}%` }}></div></div>
                 
                 <div className="flex justify-between items-center text-[12px] pt-1">
                   <span className="text-[#8A9BBF]">Volatility Risk</span>
-                  <span className="text-[#F5A623] font-semibold">71%</span>
+                  <span className="text-[#F5A623] font-semibold">{riskMetrics.volatilityRisk}%</span>
                 </div>
-                <div className="w-full h-1 bg-[#1A2235] rounded-full"><div className="h-full bg-[#F5A623] rounded-full w-[71%]"></div></div>
+                <div className="w-full h-1 bg-[#1A2235] rounded-full"><div className="h-full bg-[#F5A623] rounded-full" style={{ width: `${riskMetrics.volatilityRisk}%` }}></div></div>
                 
                 <div className="flex justify-between items-center text-[12px] pt-1">
                   <span className="text-[#8A9BBF]">Liquidity Risk</span>
-                  <span className="text-[#22D3A5] font-semibold">45%</span>
+                  <span className="text-[#22D3A5] font-semibold">{riskMetrics.liquidityRisk}%</span>
                 </div>
-                <div className="w-full h-1 bg-[#1A2235] rounded-full"><div className="h-full bg-[#22D3A5] rounded-full w-[45%]"></div></div>
+                <div className="w-full h-1 bg-[#1A2235] rounded-full"><div className="h-full bg-[#22D3A5] rounded-full" style={{ width: `${riskMetrics.liquidityRisk}%` }}></div></div>
               </div>
             </div>
 
             {/* AI Quick Insight */}
             <div className="border border-white/5 bg-[#0F1520] rounded-2xl p-6 shadow-xl">
               <h3 className="text-[12px] uppercase tracking-widest text-[#00E5B8] font-bold mb-4 flex items-center gap-2">✦ AI Insights</h3>
-              <ul className="text-[13px] text-[#8A9BBF] space-y-3 list-disc pl-4 mb-5">
-                <li>Crypto allocation (5.8%) creates unnecessary drag to downside variance.</li>
-                <li>Debt is heavily concentrated in PPF which restricts liquidity.</li>
-                <li>Nifty 50 allocation forms a solid base but flexi-cap overlap reduces alpha.</li>
-              </ul>
+              {healthScore?.aiAdvice ? (
+                <p className="text-[13px] text-[#8A9BBF] leading-relaxed mb-5">{healthScore.aiAdvice}</p>
+              ) : (
+                <p className="text-[13px] text-[#8A9BBF] mb-5">Analyzing your portfolio...</p>
+              )}
               <button 
                 onClick={() => navigate('/rebalance')}
                 className="text-[#00E5B8] text-[13px] font-semibold hover:text-[#22D3A5] transition-colors"

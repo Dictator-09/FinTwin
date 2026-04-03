@@ -26,7 +26,7 @@ export default function Dashboard() {
   // Load portfolio if missing
   React.useEffect(() => {
     if (portfolio.length === 0) {
-      getPortfolio().then(res => {
+      import('../utils/api').then(m => m.postPortfolio(userProfile)).then(res => {
         if (res && res.holdings) setPortfolio(res.holdings);
       });
     }

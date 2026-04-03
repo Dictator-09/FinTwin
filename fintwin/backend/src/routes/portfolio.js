@@ -2,19 +2,89 @@ import { Router } from 'express';
 
 const router = Router();
 
-const HARDCODED_PORTFOLIO = [
-  { id:1, name:'Nifty 50 Index Fund', fundHouse:'Mirae Asset', type:'Equity', currentValue:580000, allocation:24.1, cagr:16.2, health:'Optimal', costBasis:420000 },
-  { id:2, name:'HDFC Bank', fundHouse:'Direct Stock', type:'Equity', currentValue:240000, allocation:9.9, cagr:8.4, health:'Concentrated', costBasis:195000 },
-  { id:3, name:'Parag Parikh Flexi Cap', fundHouse:'Mutual Fund', type:'Equity', currentValue:410000, allocation:17.0, cagr:18.7, health:'Excellent', costBasis:280000 },
-  { id:4, name:'HDFC Short Duration Fund', fundHouse:'Debt Fund', type:'Debt', currentValue:310000, allocation:12.9, cagr:7.1, health:'Stable', costBasis:290000 },
-  { id:5, name:'Sovereign Gold Bond', fundHouse:'Govt. Bond', type:'Gold', currentValue:180000, allocation:7.5, cagr:11.3, health:'Good hedge', costBasis:140000 },
-  { id:6, name:'Bitcoin', fundHouse:'Crypto', type:'Crypto', currentValue:140000, allocation:5.8, cagr:62, health:'Overexposed', costBasis:90000 },
-  { id:7, name:'PPF Account', fundHouse:'Tax-saving', type:'Debt', currentValue:450000, allocation:18.7, cagr:7.1, health:'Locked', costBasis:420000 }
-];
+function generateDynamicPortfolio(profile) {
+  const age = Number(profile.age) || 30;
+  const totalValue = Number(profile.portfolioValue) || 2400000; // default 24L
 
-router.get('/', (req, res) => {
-  const totalValue = HARDCODED_PORTFOLIO.reduce((sum, item) => sum + item.currentValue, 0);
-  const totalCost = HARDCODED_PORTFOLIO.reduce((sum, item) => sum + item.costBasis, 0);
+  // Simple risk heuristic based on age
+  const isAggressive = age < 35;
+  
+  const eqTarget = isAggressive ? 0.70 : 0.55;
+  const debtTarget = isAggressive ? 0.20 : 0.35;
+  const goldTarget = 0.05;
+  const cryptoTarget = isAggressive ? 0.05 : 0.05;
+
+  const holdings = [];
+
+  // Equity - 3 funds
+  holdings.push({ 
+    id: 1, name: 'Nifty 50 Index Fund', fundHouse: 'Mirae Asset', type: 'Equity', 
+    currentValue: totalValue * eqTarget * 0.5, 
+    allocation: (eqTarget * 50).toFixed(1), cagr: 15.2, health: 'Optimal', 
+    costBasis: totalValue * eqTarget * 0.5 * 0.7 
+  });
+  holdings.push({ 
+    id: 2, name: 'Midcap Target Fund', fundHouse: 'SBI Mutual', type: 'Equity', 
+    currentValue: totalValue * eqTarget * 0.3, 
+    allocation: (eqTarget * 30).toFixed(1), cagr: 22.4, health: 'Good', 
+    costBasis: totalValue * eqTarget * 0.3 * 0.65 
+  });
+  holdings.push({ 
+    id: 3, name: 'Direct Stocks (Tech)', fundHouse: 'Direct', type: 'Equity', 
+    currentValue: totalValue * eqTarget * 0.2, 
+    allocation: (eqTarget * 20).toFixed(1), cagr: isAggressive ? 28.5 : -5.4, 
+    health: isAggressive ? 'Concentrated' : 'Bleeding', 
+    costBasis: totalValue * eqTarget * 0.2 * (isAggressive ? 0.8 : 1.2) 
+  });
+
+  // Debt - 2 funds
+  holdings.push({ 
+    id: 4, name: 'Corporate Bond Fund', fundHouse: 'HDFC', type: 'Debt', 
+    currentValue: totalValue * debtTarget * 0.6, 
+    allocation: (debtTarget * 60).toFixed(1), cagr: 7.2, health: 'Stable', 
+    costBasis: totalValue * debtTarget * 0.6 * 0.9 
+  });
+  holdings.push({ 
+    id: 5, name: 'PPF / EPF', fundHouse: 'Govt', type: 'Debt', 
+    currentValue: totalValue * debtTarget * 0.4, 
+    allocation: (debtTarget * 40).toFixed(1), cagr: 7.1, health: 'Locked', 
+    costBasis: totalValue * debtTarget * 0.4 * 0.85 
+  });
+
+  // Gold
+  holdings.push({ 
+    id: 6, name: 'Sovereign Gold Bond', fundHouse: 'RBI', type: 'Gold', 
+    currentValue: totalValue * goldTarget, 
+    allocation: (goldTarget * 100).toFixed(1), cagr: 11.5, health: 'Good hedge', 
+    costBasis: totalValue * goldTarget * 0.75 
+  });
+
+  // Crypto
+  if (cryptoTarget > 0) {
+    holdings.push({ 
+      id: 7, name: 'Crypto Basket (BTC/ETH)', fundHouse: 'Exchange', type: 'Crypto', 
+      currentValue: totalValue * cryptoTarget, 
+      allocation: (cryptoTarget * 100).toFixed(1), cagr: isAggressive ? 85 : 45, 
+      health: 'Overexposed', 
+      costBasis: totalValue * cryptoTarget * 0.5 
+    });
+  }
+
+  // Recalculate true allocations to ensure they sum to exactly 100 on frontend
+  const actualTotal = holdings.reduce((sum, h) => sum + h.currentValue, 0);
+  holdings.forEach(h => {
+    h.allocation = Number(((h.currentValue / actualTotal) * 100).toFixed(1));
+  });
+
+  return holdings;
+}
+
+router.post('/', (req, res) => {
+  const profile = req.body.profile || {};
+  const dynamicPortfolio = generateDynamicPortfolio(profile);
+
+  const totalValue = dynamicPortfolio.reduce((sum, item) => sum + item.currentValue, 0);
+  const totalCost = dynamicPortfolio.reduce((sum, item) => sum + item.costBasis, 0);
   const totalGain = totalValue - totalCost;
 
   const allocationBreakdown = {
@@ -24,7 +94,7 @@ router.get('/', (req, res) => {
     crypto: 0
   };
 
-  HARDCODED_PORTFOLIO.forEach(item => {
+  dynamicPortfolio.forEach(item => {
     const pct = (item.currentValue / totalValue) * 100;
     if (item.type === 'Equity') allocationBreakdown.equity += pct;
     else if (item.type === 'Debt') allocationBreakdown.debt += pct;
@@ -33,7 +103,7 @@ router.get('/', (req, res) => {
   });
 
   res.json({
-    holdings: HARDCODED_PORTFOLIO,
+    holdings: dynamicPortfolio,
     totalValue,
     totalGain,
     allocationBreakdown

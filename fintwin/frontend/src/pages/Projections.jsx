@@ -11,6 +11,7 @@ export default function Projections() {
   const rawRebalanceActions = useTwinStore(state => state.rebalanceActions);
   const projectionResult = useTwinStore(state => state.projectionResult);
   const setProjectionResult = useTwinStore(state => state.setProjectionResult);
+  const userProfile = useTwinStore(state => state.userProfile);
 
   const portfolio = useMemo(() => rawPortfolio || [], [rawPortfolio]);
   const rebalanceActions = useMemo(() => rawRebalanceActions || [], [rawRebalanceActions]);
@@ -26,11 +27,11 @@ export default function Projections() {
         if (h) h.currentValue = action.postTradeValue;
       });
 
-      postProject(portfolio, rPort).then(res => {
+      postProject(portfolio, rPort, userProfile).then(res => {
         if (res) setProjectionResult(res);
       }).catch(console.error);
     }
-  }, [portfolio, rebalanceActions, projectionResult, setProjectionResult]);
+  }, [portfolio, rebalanceActions, projectionResult, setProjectionResult, userProfile]);
 
   if (!projectionResult) {
     return (

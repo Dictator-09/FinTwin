@@ -3,26 +3,35 @@ import { percentile } from '../engine/monteCarlo.js';
 
 const router = Router();
 
-function forecaster(portfolioAmount, equityPct, debtPct, goldPct, cryptoPct = 0) {
+function forecaster(portfolioAmount, equityPct, debtPct, goldPct, cryptoPct = 0, monthlyContribution = 0) {
   const years = 20;
   const iterations = 5000;
   
   const mean = (equityPct * 0.12) + (debtPct * 0.07) + (goldPct * 0.085) + (cryptoPct * 0.60);
   const variance = Math.pow(equityPct * 0.18, 2) + Math.pow(debtPct * 0.03, 2) + Math.pow(goldPct * 0.12, 2) + Math.pow(cryptoPct * 0.60, 2);
   const std = Math.sqrt(variance);
+  const monthlyMean = mean / 12;
+  const monthlyStd = std / Math.sqrt(12);
+  const monthlyInflation = 0.06 / 12; // inflate contributions at 6% per year
   
   const resultsByYear = Array.from({ length: years }, () => new Float64Array(iterations));
 
   for (let i = 0; i < iterations; i++) {
     let wealth = portfolioAmount;
     for (let y = 0; y < years; y++) {
-      let u1 = Math.random(); while(u1 === 0) u1 = Math.random();
-      const u2 = Math.random();
-      const z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-      const annualReturn = mean + std * z;
-      
-      wealth = wealth * (1 + annualReturn);
-      resultsByYear[y][i] = Math.max(wealth, 0);
+      // Run 12 monthly steps per year for precision
+      for (let mo = 0; mo < 12; mo++) {
+        let u1 = Math.random(); while(u1 === 0) u1 = Math.random();
+        const u2 = Math.random();
+        const z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+        const monthReturn = monthlyMean + monthlyStd * z;
+        const monthIndex = y * 12 + mo;
+        // Inflation-adjusted contribution: grows 6% per year
+        const inflatedContrib = monthlyContribution * Math.pow(1 + monthlyInflation, monthIndex);
+        wealth = wealth * (1 + monthReturn) + inflatedContrib;
+        if (wealth < 0) wealth = 0;
+      }
+      resultsByYear[y][i] = wealth;
     }
   }
 
@@ -45,7 +54,7 @@ function forecaster(portfolioAmount, equityPct, debtPct, goldPct, cryptoPct = 0)
 
 function getPcts(portfolio) {
   const total = portfolio.reduce((s, i) => s + i.currentValue, 0);
-  if (total === 0) return { e:0, d:0, g:0, c:0 };
+  if (total === 0) return { e:0, d:0, g:0, c:0, total: 0 };
   let e=0, d=0, g=0, c=0;
   portfolio.forEach(i => {
     const w = i.currentValue / total;
@@ -67,16 +76,22 @@ function prob(rawYearData, target) {
 
 router.post('/', async (req, res, next) => {
   try {
-    const { currentPortfolio, rebalancedPortfolio } = req.body;
+    const { currentPortfolio, rebalancedPortfolio, userProfile } = req.body;
     
     const curr = getPcts(currentPortfolio);
     const reb = getPcts(rebalancedPortfolio);
 
-    const currentReq = forecaster(curr.total, curr.e, curr.d, curr.g, curr.c);
-    const rebalancedReq = forecaster(reb.total, reb.e, reb.d, reb.g, reb.c);
+    // Use actual monthly investment from profile, default to 0 if not provided
+    const monthlyContrib = Number(userProfile?.monthlyInvestment) || Number(userProfile?.income) * 0.1 || 5000;
+    const portfolioTotal = curr.total || Number(userProfile?.portfolioValue) || 100000;
 
+    const currentReq = forecaster(portfolioTotal, curr.e, curr.d, curr.g, curr.c, monthlyContrib);
+    const rebalancedReq = forecaster(reb.total || portfolioTotal, reb.e, reb.d, reb.g, reb.c, monthlyContrib);
+
+    // Dynamic milestones based on user's starting portfolio
+    const base = portfolioTotal;
     const milestones = [
-      { label: '₹50 Lakhs', targetValue: 5000000, probCurrent: prob(currentReq.rawData[4], 5000000), probRebalanced: prob(rebalancedReq.rawData[4], 5000000) },
+      { label: `${base < 2000000 ? '₹50 Lakhs' : '2× Portfolio'}`, targetValue: Math.max(5000000, base * 2), probCurrent: prob(currentReq.rawData[4], Math.max(5000000, base * 2)), probRebalanced: prob(rebalancedReq.rawData[4], Math.max(5000000, base * 2)) },
       { label: '₹1 Crore', targetValue: 10000000, probCurrent: prob(currentReq.rawData[7], 10000000), probRebalanced: prob(rebalancedReq.rawData[7], 10000000) },
       { label: '₹2 Crores', targetValue: 20000000, probCurrent: prob(currentReq.rawData[12], 20000000), probRebalanced: prob(rebalancedReq.rawData[12], 20000000) },
       { label: '₹5 Crores', targetValue: 50000000, probCurrent: prob(currentReq.rawData[17], 50000000), probRebalanced: prob(rebalancedReq.rawData[17], 50000000) }
@@ -88,7 +103,11 @@ router.post('/', async (req, res, next) => {
     res.json({
       current: currentReq,
       rebalanced: rebalancedReq,
-      milestones
+      milestones,
+      assumptions: {
+        monthlyContribution: monthlyContrib,
+        startingPortfolio: portfolioTotal,
+      }
     });
 
   } catch (error) {

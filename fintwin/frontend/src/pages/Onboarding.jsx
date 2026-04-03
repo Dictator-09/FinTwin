@@ -7,10 +7,13 @@ export default function Onboarding() {
   const navigate = useNavigate();
   const setUserProfile = useTwinStore(state => state.setUserProfile);
   const setTwinState = useTwinStore(state => state.setTwinState);
+  const resetAll = useTwinStore(state => state.resetAll);
   
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
-    // Step 1: Basic (existing)
+    // Step 1: Basic
+    age: '',
+    retirementAge: '60',
     income: '',
     expenses: '',
     variableSpend: '',
@@ -67,7 +70,12 @@ export default function Onboarding() {
     setError(null);
     
     try {
+      // Flush any stale cached data from a previous session
+      resetAll();
+
       const profile = {
+        age: Number(formData.age) || 30,
+        retirementAge: Number(formData.retirementAge) || 60,
         income: Number(formData.monthlyIncome || formData.income),
         expenses: Number(formData.monthlyExpenses || formData.expenses),
         variableSpend: Number(formData.variableSpend),
@@ -138,6 +146,17 @@ export default function Onboarding() {
         <form onSubmit={handleSubmit}>
           {currentStep === 0 && (
             <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[12px] text-[#8A9BBF] mb-1">Your Age</label>
+                  <input required type="number" name="age" value={formData.age} onChange={handleChange} min={18} max={70} placeholder="e.g. 28" className={inputStyle} />
+                </div>
+                <div>
+                  <label className="block text-[12px] text-[#8A9BBF] mb-1">Target Retirement Age</label>
+                  <input required type="number" name="retirementAge" value={formData.retirementAge} onChange={handleChange} min={40} max={80} placeholder="e.g. 60" className={inputStyle} />
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[12px] text-[#8A9BBF] mb-1">Monthly Income (₹)</label>
