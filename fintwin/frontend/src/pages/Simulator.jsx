@@ -36,7 +36,7 @@ export default function Simulator() {
     }
     setIsSimulating(true);
     try {
-      const result = await postSimulate(userProfile, selectedScenario, horizonYears);
+      const result = await postSimulate(userProfile, selectedScenario, { holdings: portfolio }, horizonYears);
       setSimulationResult(result);
     } catch (err) {
       console.error(err);

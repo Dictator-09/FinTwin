@@ -43,8 +43,10 @@ function runNewMonteCarlo(params) {
       const monthReturn = monthlyReturn + monthlyVolatility * shock;
       portfolio *= (1 + monthReturn);
 
-      // Add monthly contribution (inflation-adjusted)
-      portfolio += monthlyContribution * Math.pow(1 + monthlyInflation, m);
+      // Add monthly contribution (with 5% annual step-up, applied yearly)
+      const currentYear = Math.floor((m - 1) / 12);
+      const stepUpMultiplier = Math.pow(1.05, currentYear);
+      portfolio += monthlyContribution * stepUpMultiplier;
 
       // Major expense at this year
       const yearNum = Math.floor(m / 12);
@@ -122,10 +124,11 @@ router.post('/', async (req, res, next) => {
 
     // ── PRESET / STRING PATH: Map keys to runNewMonteCarlo ────────────
     const initialPortfolio = portfolio?.totalValue ||
+      (portfolio?.holdings ? portfolio.holdings.reduce((s, a) => s + (a.currentValue || a.costBasis || 0), 0) : 0) ||
       (portfolio?.assets ? Object.values(portfolio.assets).reduce((s, a) => s + (a.value || 0), 0) : 0) ||
       Number(userProfile?.portfolioValue) || 100000;
 
-    let monthlyContribution = profile?.monthlyInvestment || Number(userProfile?.monthlyIncome) * 0.2 || 10000;
+    let monthlyContribution = profile?.monthlyInvestment || userProfile?.monthlyInvestment || Number(userProfile?.monthlyIncome) * 0.2 || 0;
     const baseReturn = 0.12;
     const baseVol = 0.18;
     
@@ -156,7 +159,7 @@ router.post('/', async (req, res, next) => {
       inflationRate: 0.06,
       volatility: volHit,
       years: years || 20,
-      simulations: iterations,
+      simulations: Math.min(iterations || 1000, 1000), // Cap at 1000
       majorExpenses: expenseArr,
       withdrawalStartYear: null,
       withdrawalAmount: 0,

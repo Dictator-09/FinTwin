@@ -15,10 +15,12 @@ export const getQuotes = async (symbols) => {
 };
 
 // Legacy: string scenarioKey for predefined scenarios
-export const postSimulate = async (userProfile, scenario, years = 15, iterations = 3000) => {
+export const postSimulate = async (userProfile, scenario, portfolio, years = 15, iterations = 1000) => {
   const response = await api.post('/api/simulate', {
     userProfile,
     scenario,      // B1 fix: send only 'scenario'
+    portfolio,     // Pass the actual holdings
+    profile: userProfile, // Pass userProfile as profile as well for proper parsing
     years,
     iterations
   });
