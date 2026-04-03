@@ -63,6 +63,7 @@ export async function callClaude(systemPrompt, userMessage, stream = false) {
 
     // Smart Mock Selection
     const promptLower = (systemPrompt || '').toLowerCase();
+    const userMessageLower = (typeof userMessage === 'string' ? userMessage : '').toLowerCase();
     
     if (promptLower.includes('scenario parser')) {
       return MOCK_SCENARIO;
@@ -70,6 +71,10 @@ export async function callClaude(systemPrompt, userMessage, stream = false) {
     
     if (typeof userMessage !== 'string' || promptLower.includes('personality analyzer')) {
       return MOCK_PROFILE;
+    }
+
+    if (userMessageLower.includes('15 words')) {
+      return "Sell to reduce risk and realign with your optimal portfolio targets.";
     }
 
     return MOCK_INSIGHT;
