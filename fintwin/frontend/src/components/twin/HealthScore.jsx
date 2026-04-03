@@ -1,12 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useTwinStore } from '../../store';
 import { postHealthScore } from '../../utils/api';
 
 const gradeColors = { A: '#22c55e', B: '#84cc16', C: '#f59e0b', D: '#ef4444' };
 
 export default function HealthScore() {
-  const userProfile = useTwinStore(state => state.userProfile) || {};
-  const portfolio = useTwinStore(state => state.portfolio) || [];
+  const rawUserProfile = useTwinStore(state => state.userProfile);
+  const rawPortfolio = useTwinStore(state => state.portfolio);
+  const userProfile = useMemo(() => rawUserProfile || {}, [rawUserProfile]);
+  const portfolio = useMemo(() => rawPortfolio || [], [rawPortfolio]);
   const healthScore = useTwinStore(state => state.healthScore);
   const setHealthScore = useTwinStore(state => state.setHealthScore);
   const [loading, setLoading] = useState(false);
@@ -15,12 +17,17 @@ export default function HealthScore() {
     const income = userProfile?.monthlyIncome || userProfile?.income;
     if (!income || healthScore) return;
 
-    setLoading(true);
+    setTimeout(() => setLoading(true), 0);
     postHealthScore(userProfile, portfolio)
-      .then(data => setHealthScore(data))
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [userProfile?.monthlyIncome, userProfile?.income]);
+      .then(data => {
+        setHealthScore(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, [userProfile, portfolio, healthScore, setHealthScore]);
 
   if (loading) {
     return (

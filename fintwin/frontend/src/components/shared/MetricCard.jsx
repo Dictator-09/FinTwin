@@ -1,6 +1,6 @@
 import React from 'react';
 
-const MetricCard = ({ label, value, subtext, subtextColor = 'muted', sparklineData = null }) => {
+const MetricCard = ({ label, value, subtext, subtextColor = 'muted' }) => {
   const textColorMap = {
     green: '#22D3A5',
     red: '#FF4D4D',

@@ -40,7 +40,7 @@ const StreamingInsight = ({ userProfile, twinState, simulationResult }) => {
               const parsed = JSON.parse(data);
               const token = parsed?.text || parsed?.delta?.text || parsed?.completion || '';
               if (token) setText(prev => prev + token);
-            } catch (e) {
+            } catch {
               // If it's not JSON, try appending as plain text
               if (data && data !== '[DONE]') {
                 setText(prev => prev + data);

@@ -53,7 +53,7 @@ export function runMonteCarlo(userProfile, scenarioDelta = {}, years = 15, itera
         const rampProgress = (m - rampMonths + 1) / 6;
         currentIncome = (rampTargetIncome || 0) * rampProgress;
       } else {
-        currentIncome = (rampTargetIncome || currentIncome);
+        currentIncome = (rampTargetIncome !== undefined && rampTargetIncome !== null ? rampTargetIncome : currentIncome);
       }
     }
     monthlyIncomes[m] = currentIncome;
@@ -70,9 +70,11 @@ export function runMonteCarlo(userProfile, scenarioDelta = {}, years = 15, itera
       const z = safeBoxMuller();
       const monthlyReturn = monthlyMean + monthlyStd * z;
       
-      wealth = wealth * (1 + monthlyReturn) + monthSurplus;
+      // Compound existing wealth and THEN add the monthly surplus/deficit
+      wealth = (wealth * (1 + monthlyReturn)) + (monthlyIncomes[m] - monthlyExpenses[m] - emi);
+      
       if (!isFinite(wealth) || isNaN(wealth)) wealth = 0;
-      if (wealth < 0) wealth = 0;
+      if (wealth <= 0) wealth = 0;
       
       if ((m + 1) % 12 === 0) {
         const yearIndex = ((m + 1) / 12) - 1;

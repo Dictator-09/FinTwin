@@ -44,7 +44,7 @@ function runNewMonteCarlo(params) {
       portfolio *= (1 + monthReturn);
 
       // Add monthly contribution (inflation-adjusted)
-      portfolio += monthlyContribution * Math.pow(1 + monthlyInflation, m / 12);
+      portfolio += monthlyContribution * Math.pow(1 + monthlyInflation, m);
 
       // Major expense at this year
       const yearNum = Math.floor(m / 12);

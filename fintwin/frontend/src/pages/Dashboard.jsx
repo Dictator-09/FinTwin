@@ -8,29 +8,29 @@ import TwinTimeline from '../components/twin/TwinTimeline';
 import HealthScore from '../components/twin/HealthScore';
 import ReportModal from '../components/shared/ReportModal';
 import { formatINR } from '../utils/formatCurrency';
-import { formatPercent } from '../utils/formatPercent';
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const twinState = useTwinStore((state) => state.twinState);
-  const userProfile = useTwinStore((state) => state.userProfile) || {};
-  const portfolio = useTwinStore((state) => state.portfolio) || [];
+  const rawUserProfile = useTwinStore((state) => state.userProfile);
+  const rawPortfolio = useTwinStore((state) => state.portfolio);
   const simulationResult = useTwinStore((state) => state.simulationResult);
   const healthScore = useTwinStore((state) => state.healthScore);
 
-  if (!twinState) {
-    return (
-      <div className="min-h-screen bg-[#080C14] text-[#EEF2FF]">
-        <div className="p-8 max-w-4xl mx-auto flex flex-col items-center justify-center mt-20">
-          <div className="w-12 h-12 border-4 border-[#00E5B8] border-t-transparent rounded-full animate-spin mb-6"></div>
-          <h2 className="text-xl font-semibold text-[#EEF2FF] mb-8">Your financial twin is being built...</h2>
-          <div className="w-full max-w-2xl bg-[#0F1520] p-8 rounded-2xl border border-white/5">
-            <LoadingSkeleton rows={5} height={24} />
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const setPortfolio = useTwinStore((state) => state.setPortfolio);
+
+  const userProfile = useMemo(() => rawUserProfile || {}, [rawUserProfile]);
+  const portfolio = useMemo(() => rawPortfolio || [], [rawPortfolio]);
+
+  // Load portfolio if missing
+  React.useEffect(() => {
+    if (portfolio.length === 0) {
+      import('../utils/api').then(m => m.getPortfolio()).then(res => {
+        if (res && res.holdings) setPortfolio(res.holdings);
+      });
+    }
+  }, [portfolio.length, setPortfolio]);
+
 
   // Computed values from store (Upgrade 10 — replace hardcoded)
   const metrics = useMemo(() => {
@@ -41,7 +41,7 @@ export default function Dashboard() {
     const totalExpenses = fixedExpenses + variableSpend + emis;
     const netSurplus = income - totalExpenses;
     const savingsRate = income > 0 ? ((netSurplus / income) * 100).toFixed(1) : '0.0';
-    const netWorth = Number(twinState.estimatedNetWorth || userProfile.portfolioValue || 0);
+    const netWorth = Number(twinState?.estimatedNetWorth || userProfile.portfolioValue || 0);
     const portfolioValue = Number(userProfile.portfolioValue || 0);
 
     // Compute from actual portfolio if loaded
@@ -60,7 +60,7 @@ export default function Dashboard() {
     const assetBreakdown = { Equity: 0, Debt: 0, Gold: 0, Crypto: 0 };
     if (portfolio.length > 0) {
       portfolio.forEach(item => {
-        if (assetBreakdown.hasOwnProperty(item.type)) {
+        if (Object.prototype.hasOwnProperty.call(assetBreakdown, item.type)) {
           assetBreakdown[item.type] += item.currentValue || 0;
         }
       });
@@ -77,7 +77,7 @@ export default function Dashboard() {
     const age = Number(userProfile.age) || 30;
     const yearsToRetirement = Math.max(0, 60 - age);
     const months = yearsToRetirement * 12;
-    const r = 0.01; // 12% annual = 1% monthly
+    // Removed unused 'r' variable
     const futureCorpus = totalAssets * Math.pow(1.01, months) +
       monthlyInvestment * ((Math.pow(1.01, months) - 1) / 0.01);
 
@@ -89,6 +89,20 @@ export default function Dashboard() {
       futureCorpus, yearsToRetirement
     };
   }, [userProfile, twinState, portfolio]);
+
+  if (!twinState) {
+    return (
+      <div className="min-h-screen bg-[#080C14] text-[#EEF2FF]">
+        <div className="p-8 max-w-4xl mx-auto flex flex-col items-center justify-center mt-20">
+          <div className="w-12 h-12 border-4 border-[#00E5B8] border-t-transparent rounded-full animate-spin mb-6"></div>
+          <h2 className="text-xl font-semibold text-[#EEF2FF] mb-8">Your financial twin is being built...</h2>
+          <div className="w-full max-w-2xl bg-[#0F1520] p-8 rounded-2xl border border-white/5">
+            <LoadingSkeleton rows={5} height={24} />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#080C14] text-[#EEF2FF] font-sans pb-16">

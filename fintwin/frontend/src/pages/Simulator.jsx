@@ -19,11 +19,9 @@ export default function Simulator() {
   const [isSimulating, setIsSimulating] = useState(false);
   const [horizonYears, setHorizonYears] = useState(15);
   const [mode, setMode] = useState('preset'); // 'preset' | 'freeform'
-  const [activeScenario, setActiveScenario] = useState(null);
 
   // What-If Comparison
   const [baselineResult, setBaselineResult] = useState(null);
-  const [scenarioResult, setScenarioResult] = useState(null);
 
   const userProfile = useTwinStore(state => state.userProfile);
   const twinState = useTwinStore(state => state.twinState) || {};
@@ -47,8 +45,10 @@ export default function Simulator() {
     }
   };
 
+
+
   const handleScenarioReady = async (scenario) => {
-    setActiveScenario(scenario);
+
     setIsSimulating(true);
     try {
       const result = await postSimulateScenario(scenario, userProfile, { holdings: portfolio }, userProfile);
@@ -59,6 +59,7 @@ export default function Simulator() {
       setIsSimulating(false);
     }
   };
+
 
   const handleSetBaseline = () => {
     if (simulationResult) setBaselineResult(simulationResult);

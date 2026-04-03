@@ -1,32 +1,90 @@
 import axios from 'axios';
 
+const MOCK_MODE = process.env.MOCK_AI === 'true' || !process.env.GROQ_API_KEY;
+
+const MOCK_PROFILE = {
+  "archetype": "Balanced Achiever",
+  "riskScore": 65,
+  "radarScores": {
+    "riskTolerance": 60,
+    "discipline": 85,
+    "patience": 75,
+    "optimism": 70,
+    "liquidity": 50
+  },
+  "summary": "You have a disciplined approach to savings but a moderate risk appetite. Your portfolio structure suggests a focus on long-term stability with periodic growth opportunistic plays.",
+  "traits": ["Disciplined Saver", "Goal Oriented", "Moderately Risk-Averse"],
+  "savingsRate": 37.5,
+  "monthlyNetWorth": 45000,
+  "estimatedNetWorth": 645000
+};
+
+const MOCK_INSIGHT = "Based on your current trajectory, your financial twin is showing strong resilience. Your monthly surplus of ₹45,000 is being utilized efficiently. To reach your 10-year goal faster, consider increasing your equity allocation by 5-10% to capture higher market risk premiums, given your 'Balanced Achiever' archetype.";
+
+const MOCK_SCENARIO = {
+  "scenarioName": "Retirement at 45",
+  "annualReturnRate": 0.12,
+  "inflationRate": 0.06,
+  "volatility": 0.15,
+  "additionalMonthlyInvestment": 25000,
+  "withdrawalStartYear": 17,
+  "withdrawalAmount": 200000,
+  "years": 20,
+  "majorExpenses": [
+    { "year": 3, "amount": 8000000, "label": "House Purchase" },
+    { "year": 5, "amount": 2000000, "label": "Business Seed" }
+  ],
+  "salaryGrowthRate": 0.08,
+  "scenarioSummary": "A transition to early retirement with significant mid-term capital outlays for housing and entrepreneurship."
+};
+
 /**
- * callClaude - unified Groq API caller
- * @param {string} systemPrompt  - system-level instruction (used as context)
- * @param {any}    userMessage   - user data (object for profile, string for insight)
- * @param {boolean} stream       - if true, returns a streaming axios response
+ * callClaude - unified Groq API caller with Mock Fallback
  */
 export async function callClaude(systemPrompt, userMessage, stream = false) {
-  const apiKey = process.env.GROQ_API_KEY;
+  if (MOCK_MODE) {
+    console.log('⚠️ AI Mock Mode Active');
+    if (stream) {
+      // Return a fake axios-like response object for streaming
+      return {
+        data: {
+          on: (event, callback) => {
+            if (event === 'data') {
+              const chunks = MOCK_INSIGHT.split(' ').map(word => `data: ${JSON.stringify({ choices: [{ delta: { content: word + ' ' } }] })}\n`);
+              chunks.forEach((c, i) => setTimeout(() => callback(Buffer.from(c)), i * 50));
+              setTimeout(() => callback(Buffer.from('data: [DONE]\n')), chunks.length * 50 + 100);
+            }
+            if (event === 'end') setTimeout(callback, MOCK_INSIGHT.split(' ').length * 50 + 200);
+            if (event === 'error') {}
+          }
+        }
+      };
+    }
 
-  if (!apiKey) {
-    throw new Error('GROQ_API_KEY is missing from environment variables.');
+    // Smart Mock Selection
+    const promptLower = (systemPrompt || '').toLowerCase();
+    
+    if (promptLower.includes('scenario parser')) {
+      return MOCK_SCENARIO;
+    }
+    
+    if (typeof userMessage !== 'string' || promptLower.includes('personality analyzer')) {
+      return MOCK_PROFILE;
+    }
+
+    return MOCK_INSIGHT;
   }
 
-  // ── Build messages ─────────────────────────────────────────────────────────
+  const apiKey = process.env.GROQ_API_KEY;
   let messages;
 
   if (stream) {
-    // Insight mode: systemPrompt is an instruction, userMessage is a JSON string
     messages = [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: typeof userMessage === 'string' ? userMessage : JSON.stringify(userMessage) },
     ];
   } else {
-    // Profile mode: build a rich structured prompt from userData object
     const userData = userMessage;
-
-    // If userMessage is a string (e.g. rebalance tip prompt), use it directly
     if (typeof userData === 'string') {
       messages = [
         { role: 'system', content: systemPrompt },
@@ -36,43 +94,26 @@ export async function callClaude(systemPrompt, userMessage, stream = false) {
       const savings = userData.income - userData.expenses - userData.variableSpend - userData.emi;
       const savingsRate = userData.income > 0 ? ((savings / userData.income) * 100).toFixed(1) : 0;
 
-      const profilePrompt = `You are a financial personality analyzer for an Indian fintech app called FinTwin.
+      const profilePrompt = `You are a financial personality analyzer for an Indian fintech app called FinTwin. Give the user's financial data below, generate a detailed financial twin personality profile. Respond ONLY with a valid JSON object.
+      
+DATA: ${JSON.stringify(userData)}
+SAVINGS: ₹${savings} (${savingsRate}%)
 
-Given the user's financial data below, generate a detailed financial twin personality profile.
-
-USER FINANCIAL DATA:
-- Monthly Income: ₹${userData.income}
-- Fixed Expenses: ₹${userData.expenses}
-- Variable Spend: ₹${userData.variableSpend}
-- Monthly EMI: ₹${userData.emi}
-- Current Portfolio Value: ₹${userData.portfolioValue}
-- Primary Financial Drive: ${userData.emotionalChoice}
-- Calculated Monthly Savings: ₹${savings} (${savingsRate}% savings rate)
-
-Respond ONLY with a valid JSON object. No markdown, no code fences, no explanation. Just raw JSON:
-
+JSON Schema:
 {
   "archetype": "one of: Disciplined Builder | Aggressive Grower | Conservative Saver | Balanced Achiever | Debt Warrior | Impulsive Spender",
-  "riskScore": <number 0-100>,
-  "radarScores": {
-    "riskTolerance": <number 0-100>,
-    "discipline": <number 0-100>,
-    "patience": <number 0-100>,
-    "optimism": <number 0-100>,
-    "liquidity": <number 0-100>
-  },
-  "summary": "<2-3 sentence personality summary based on spending behavior and goals>",
-  "traits": ["<trait1>", "<trait2>", "<trait3>"],
-  "savingsRate": <number percentage>,
-  "monthlyNetWorth": <monthly net savings as number in rupees>,
-  "estimatedNetWorth": <estimated total net worth as number in rupees>
+  "riskScore": number,
+  "radarScores": { "riskTolerance": number, "discipline": number, "patience": number, "optimism": number, "liquidity": number },
+  "summary": "string",
+  "traits": ["string"],
+  "savingsRate": number,
+  "monthlyNetWorth": number,
+  "estimatedNetWorth": number
 }`;
-
       messages = [{ role: 'user', content: profilePrompt }];
     }
   }
 
-  // ── Make Groq API request ──────────────────────────────────────────────────
   try {
     const response = await axios.post(
       'https://api.groq.com/openai/v1/chat/completions',
@@ -84,58 +125,42 @@ Respond ONLY with a valid JSON object. No markdown, no code fences, no explanati
         stream,
       },
       {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         timeout: 30000,
         responseType: stream ? 'stream' : 'json',
       }
     );
 
-    if (stream) {
-      // Return raw axios response so insight.js can pipe the stream
-      return response;
-    }
+    if (stream) return response;
 
-    // Non-stream: parse JSON from text response
     const content = response.data.choices[0].message.content.trim();
-    console.log('✅ Groq raw response:', content);
-
-    // Extract JSON even if the model wraps it in markdown fences
     const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      // If no JSON found, return the raw string (for rebalance tips etc.)
-      return content;
-    }
-
     try {
-      return JSON.parse(jsonMatch[0]);
-    } catch (parseErr) {
-      // If JSON parse fails, return raw string
+      return jsonMatch ? JSON.parse(jsonMatch[0]) : content;
+    } catch (e) {
       return content;
     }
   } catch (error) {
-    if (error.response) {
-      console.error('❌ Groq API error status:', error.response.status);
-      console.error('❌ Groq API error body:', JSON.stringify(error.response.data, null, 2));
-    } else {
-      console.error('❌ Groq call failed:', error.message);
-    }
+    console.error('❌ Groq API error:', error.message);
     throw error;
   }
 }
 
 /**
- * callGroqStream - streams Groq response, parses SSE, writes plain text to res
+ * callGroqStream - streams Groq response with Mock Fallback
  */
 export async function callGroqStream(systemPrompt, userMessage, res) {
-  const apiKey = process.env.GROQ_API_KEY;
-
-  if (!apiKey) {
-    throw new Error('GROQ_API_KEY is missing from environment variables.');
+  if (MOCK_MODE) {
+    console.log('⚠️ AI Stream Mock Mode Active');
+    const words = MOCK_INSIGHT.split(' ');
+    for (let i = 0; i < words.length; i++) {
+       res.write(words[i] + ' ');
+       await new Promise(r => setTimeout(r, 50));
+    }
+    return;
   }
 
+  const apiKey = process.env.GROQ_API_KEY;
   const response = await axios.post(
     'https://api.groq.com/openai/v1/chat/completions',
     {
@@ -149,10 +174,7 @@ export async function callGroqStream(systemPrompt, userMessage, res) {
       stream: true
     },
     {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       responseType: 'stream'
     }
   );
@@ -165,13 +187,14 @@ export async function callGroqStream(systemPrompt, userMessage, res) {
       buffer = lines.pop();
       for (const line of lines) {
         const trimmed = line.trim();
-        if (!trimmed || trimmed === 'data: [DONE]') continue;
+        if (!trimmed) continue;
         if (trimmed.startsWith('data: ')) {
+          if (trimmed === 'data: [DONE]') continue;
           try {
             const json = JSON.parse(trimmed.slice(6));
             const content = json.choices?.[0]?.delta?.content;
             if (content) res.write(content);
-          } catch (e) { /* skip malformed SSE lines */ }
+          } catch (e) {}
         }
       }
     });

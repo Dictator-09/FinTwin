@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useTwinStore } from '../store';
 import { postProject } from '../utils/api';
 
@@ -7,10 +7,13 @@ import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import { formatINR } from '../utils/formatCurrency';
 
 export default function Projections() {
-  const portfolio = useTwinStore(state => state.portfolio) || [];
-  const rebalanceActions = useTwinStore(state => state.rebalanceActions) || [];
+  const rawPortfolio = useTwinStore(state => state.portfolio);
+  const rawRebalanceActions = useTwinStore(state => state.rebalanceActions);
   const projectionResult = useTwinStore(state => state.projectionResult);
   const setProjectionResult = useTwinStore(state => state.setProjectionResult);
+
+  const portfolio = useMemo(() => rawPortfolio || [], [rawPortfolio]);
+  const rebalanceActions = useMemo(() => rawRebalanceActions || [], [rawRebalanceActions]);
 
   const [selectedYear, setSelectedYear] = useState(10);
   const [inflationAdjusted, setInflationAdjusted] = useState(true);

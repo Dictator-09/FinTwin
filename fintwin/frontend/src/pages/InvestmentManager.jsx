@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { useTwinStore } from '../store';
@@ -10,14 +10,16 @@ import { formatINR } from '../utils/formatCurrency';
 
 export default function InvestmentManager() {
   const navigate = useNavigate();
-  const portfolio = useTwinStore(state => state.portfolio) || [];
+  const rawPortfolio = useTwinStore(state => state.portfolio);
   const setPortfolio = useTwinStore(state => state.setPortfolio);
   
+  const portfolio = useMemo(() => rawPortfolio || [], [rawPortfolio]);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('All');
 
   useEffect(() => {
-    if (!portfolio || portfolio.length === 0) {
+    if (portfolio.length === 0) {
       getPortfolio().then(res => {
         if (res && res.holdings) setPortfolio(res.holdings);
       }).catch(console.error);
@@ -31,8 +33,8 @@ export default function InvestmentManager() {
     return matchesSearch && matchesType;
   });
 
-  const totalInvested = portfolio.reduce((s, i) => s + i.costBasis, 0);
-  const currentValue = portfolio.reduce((s, i) => s + i.currentValue, 0);
+  const totalInvested = portfolio.reduce((s, i) => s + (i.costBasis || 0), 0);
+  const currentValue = portfolio.reduce((s, i) => s + (i.currentValue || 0), 0);
   
   const currentAlloc = [
     { name: 'Equity', value: 58, color: '#8B7FFF' },
@@ -65,8 +67,8 @@ export default function InvestmentManager() {
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <MetricCard label="Total Invested" value={formatINR(totalInvested || 1840000)} />
-          <MetricCard label="Current Value" value={formatINR(currentValue || 2410000)} subtext="+₹5,70,000" subtextColor="green" />
+          <MetricCard label="Total Invested" value={formatINR(totalInvested || 0)} />
+          <MetricCard label="Current Value" value={formatINR(currentValue || 0)} subtext="+₹5,70,000" subtextColor="green" />
           <MetricCard label="XIRR" value="14.2%" subtext="Beat benchmark by 2%" subtextColor="green" />
           <MetricCard label="Risk Score" value="72 / 100" subtext="Moderately Aggressive" subtextColor="amber" />
         </div>

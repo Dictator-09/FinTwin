@@ -41,10 +41,6 @@ export default function Onboarding() {
     }));
   };
 
-  const handleNumChange = (name, value) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
   // Sync step 1 fields with step 2 (if step 2 not yet filled)
   const syncFields = () => {
     setFormData(prev => ({

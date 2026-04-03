@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTwinStore } from '../store';
 import { postRebalance } from '../utils/api';
@@ -9,9 +9,12 @@ import { formatINR } from '../utils/formatCurrency';
 
 export default function RebalanceAdvisor() {
   const navigate = useNavigate();
-  const portfolio = useTwinStore(state => state.portfolio) || [];
-  const rebalanceActions = useTwinStore(state => state.rebalanceActions) || [];
+  const rawPortfolio = useTwinStore(state => state.portfolio);
+  const rawRebalanceActions = useTwinStore(state => state.rebalanceActions);
   const setRebalanceActions = useTwinStore(state => state.setRebalanceActions);
+
+  const portfolio = useMemo(() => rawPortfolio || [], [rawPortfolio]);
+  const rebalanceActions = useMemo(() => rawRebalanceActions || [], [rawRebalanceActions]);
 
   useEffect(() => {
     if (rebalanceActions.length === 0 && portfolio.length > 0) {
@@ -21,8 +24,8 @@ export default function RebalanceAdvisor() {
     }
   }, [portfolio, rebalanceActions, setRebalanceActions]);
 
-  const totalSells = rebalanceActions.filter(a => a.action === 'SELL').reduce((s, a) => s + a.amount, 0);
-  const totalBuys = rebalanceActions.filter(a => a.action === 'BUY').reduce((s, a) => s + a.amount, 0);
+  const totalSells = rebalanceActions.filter(a => a.action === 'SELL').reduce((s, a) => s + (a.amount || 0), 0);
+  const totalBuys = rebalanceActions.filter(a => a.action === 'BUY').reduce((s, a) => s + (a.amount || 0), 0);
   const estTax = rebalanceActions.reduce((s, a) => s + (a.taxAmount || 0), 0);
   const netCash = totalSells - totalBuys - estTax;
 
