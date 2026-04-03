@@ -104,7 +104,7 @@ export default function Projections() {
             </div>
           </div>
           <div className="h-[350px] w-full">
-            <PercentileBandsChart data={current} dangerZoneThreshold={5000000} />
+            <PercentileBandsChart data={current} dangerZoneThreshold={5000000} maxYears={selectedYear} inflationFactor={inflationAdjusted ? 1.06 : null} />
           </div>
         </div>
 
@@ -137,12 +137,16 @@ export default function Projections() {
             </div>
           </div>
           <div className="h-[350px] w-full">
-            <PercentileBandsChart data={rebalanced} dangerZoneThreshold={5000000} />
+            <PercentileBandsChart data={rebalanced} dangerZoneThreshold={5000000} maxYears={selectedYear} inflationFactor={inflationAdjusted ? 1.06 : null} />
           </div>
         </div>
 
         {/* Year Slider */}
         <div className="bg-[#0F1520] border border-white/5 rounded-2xl p-6 shadow-xl">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-[11px] text-[#566580] font-bold uppercase tracking-wider">Selected Horizon</span>
+            <span className="text-[13px] text-[#00E5B8] font-bold">Year {selectedYear}</span>
+          </div>
           <input 
             type="range" min="1" max="20" step="1" 
             value={selectedYear} onChange={e => setSelectedYear(parseInt(e.target.value))}

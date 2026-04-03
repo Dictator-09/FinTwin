@@ -29,15 +29,21 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-const PercentileBandsChart = ({ data, dangerZoneThreshold = 500000 }) => {
+const PercentileBandsChart = ({ data, dangerZoneThreshold = 500000, maxYears, inflationFactor }) => {
   if (!data || !data.years) return null;
 
-  const chartData = data.years.map((year, i) => ({
-    year,
-    'Top 10% (P90)': data.p90[i],
-    'Median (P50)': data.p50[i],
-    'Bottom 10% (P10)': data.p10[i]
-  }));
+  // Optionally slice data to maxYears
+  const limit = maxYears ? Math.min(maxYears, data.years.length) : data.years.length;
+
+  const chartData = data.years.slice(0, limit).map((year, i) => {
+    const deflator = inflationFactor ? Math.pow(inflationFactor, year) : 1;
+    return {
+      year,
+      'Top 10% (P90)': data.p90[i] / deflator,
+      'Median (P50)': data.p50[i] / deflator,
+      'Bottom 10% (P10)': data.p10[i] / deflator
+    };
+  });
 
   return (
     <div style={{ width: '100%', height: '100%' }}>
