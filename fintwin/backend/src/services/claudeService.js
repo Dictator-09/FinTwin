@@ -117,7 +117,7 @@ export async function callClaude(systemPrompt, userMessage, stream = false) {
   const useGemini = !!process.env.GEMINI_API_KEY;
   const apiKey = useGemini ? process.env.GEMINI_API_KEY : process.env.GROQ_API_KEY;
   const baseUrl = useGemini ? 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions' : 'https://api.groq.com/openai/v1/chat/completions';
-  const modelId = useGemini ? 'gemini-1.5-flash' : 'llama-3.3-70b-versatile';
+  const modelId = useGemini ? 'gemini-2.0-flash' : 'llama-3.3-70b-versatile';
   let messages;
 
   if (stream) {
@@ -262,7 +262,7 @@ ${median > 10000000 ? 'You\'re well on track — focus on protecting this runway
   const useGemini = !!process.env.GEMINI_API_KEY;
   const apiKey = useGemini ? process.env.GEMINI_API_KEY : process.env.GROQ_API_KEY;
   const baseUrl = useGemini ? 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions' : 'https://api.groq.com/openai/v1/chat/completions';
-  const modelId = useGemini ? 'gemini-1.5-flash' : 'llama-3.3-70b-versatile';
+  const modelId = useGemini ? 'gemini-2.0-flash' : 'llama-3.3-70b-versatile';
 
   const response = await axios.post(
     baseUrl,
